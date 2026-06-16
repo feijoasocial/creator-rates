@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, SlidersHorizontal, TrendingUp, DollarSign, FileText, MapPin, Users, Briefcase, Camera, X, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import Papa from 'papaparse';
 
 // === BRAND COLOURS (Feijoa Social) ===
 const C = {
@@ -18,17 +19,17 @@ const FORM_URL = 'https://forms.gle/59N1esQac1yyfXQP8';
 
 // === RATE BRACKETS ===
 const RATE_BRACKETS = [
-  'Free / product only', 'Under $100', '$100-$250', '$250-$500', '$500-$1,000',
-  '$1,000-$2,500', '$2,500-$5,000', '$5,000-$10,000', '$10,000+'
+  'Contra', '< $100', '$100 to 250', '$250 to 500', '$500 to 1k',
+  '$1k - 2.5k', '$2.5k - 5k', '$5k - 10k', '$10k - 20k', '$20k+'
 ];
 
 const REVENUE_BRACKETS = [
-  '$0', 'Under $1K', '$1K-$5K', '$5K-$10K', '$10K-$25K',
-  '$25K-$50K', '$50K-$100K', '$100K+'
+  '$0', '< $1K', '$1K - $5K', '$5K - $10K', '$10K - $25K',
+  '$25K - $50K', '$50K - $100K', '$100K+'
 ];
 
 const LICENSING_BRACKETS = [
-  '0% (included)', '10-25%', '25-50%', '50-100%', '100-200%', '200%+'
+  '0%', '10-25%', '25-50%', '50-100%', '100-200%', '200%+'
 ];
 
 // === DUMMY DATA (40 responses) ===
@@ -293,20 +294,20 @@ const LICENSING_TERRITORY = [
   { key: 'terrGlobal', label: 'Global' },
 ];
 const LICENSING_ALL = [...LICENSING_DURATION, ...LICENSING_USAGE, ...LICENSING_TERRITORY, { key: 'exclusivity', label: 'Category exclusivity' }];
-const TOTAL_BRACKETS = ['$0', 'Under $1K', '$1K-$5K', '$5K-$10K', '$10K-$25K', '$25K-$50K', '$50K-$100K', '$100K-$150K', '$150K-$200K', '$200K-$250K', '$250K+'];
+const TOTAL_BRACKETS = ['$0', 'Under $1K', '$1K - $5K', '$5K - $10K', '$10K - $25K', '$25K - $50K', '$50K - $100K', '$100K - $150K', '$200K - $250K', '$250K+'];
 
-const FOLLOWERS = ['1K-5K', '5K-10K', '10K-25K', '25K-50K', '50K-100K', '100K-500K', '500K+'];
+const FOLLOWERS = ['Under 1K', '1K - 5K', '5K - 10K', '10K - 25K', '25K - 50K', '50K - 100K', '100K - 500K', '500K+'];
 const COUNTRIES = ['New Zealand', 'Australia', 'United Kingdom', 'United States'];
 const NICHES = ['Travel', 'Outdoor/Adventure', 'Food/Cooking', 'Fashion', 'Beauty/Skincare', 'Fitness/Wellness', 'Parenting/Family', 'Business/Finance', 'Tech/Gaming', 'Lifestyle', 'Comedy/Entertainment', 'Education/Tutorials', 'Other'];
-const WORK = ['Full-time creator', 'Part-time', 'Side hustle', 'Hobby with occasional paid opportunities'];
+const WORK = ['Full-time creative', 'Part-time alongside other part-time work', 'Side hustle alongside other full-time work', 'Hobby with occasional paid opportunities', 'Unpaid passion project / hobby'];
 const YEARS = ['Under 1', '1-2', '3-5', '6-10', '10+'];
 
 // === EXTRA FIELDS (illustrative sample values until the live feed is wired) ===
-const CREATOR_TYPES = ['Content creator', 'Influencer', 'Photographer', 'Videographer', 'Blogger', 'Podcaster', 'UGC creator'];
+const CREATOR_TYPES = ['Content Creator', 'Influencer', 'Blogger', 'Podcaster', 'Photographer', 'Videographer', 'Freelancer', 'Business / agency owner', 'YouTuber', 'TikToker', 'Instagrammer', 'Other'];
 const CURRENCIES = ['NZD', 'AUD', 'USD', 'GBP'];
 const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Podcast', 'Blog', 'Substack', 'LinkedIn'];
-const ENGAGEMENT_LEVELS = ['Under 1%', '1-3%', '3-5%', '5-10%', '10%+'];
-const TRAINING_OPTIONS = ['Self-taught', 'Free resources', 'Paid courses', 'Workshops / webinars', 'Group programmes', '1:1 coaching', 'Formal qualification'];
+const ENGAGEMENT_LEVELS = ['Under 1%', '1% - 3%', '3% - 5%', '5% - 10%', '10%+'];
+const TRAINING_OPTIONS = ["No, I'm fully self-taught", 'Free resources (YouTube, blogs, free webinars)', 'Paid online courses', 'Live workshops or webinars', 'Group programmes, memberships or communities', '1:1 coaching or mentoring', 'Formal qualification (degree, diploma, certificate)'];
 
 function enrichResponse(r, i) {
   let creatorType;
@@ -314,8 +315,8 @@ function enrichResponse(r, i) {
   else if (r.rates.proVideo && r.rates.proVideo !== 'N/A' && i % 4 === 0) creatorType = 'Videographer';
   else if (r.rates.proImage && r.rates.proImage !== 'N/A' && i % 4 === 1) creatorType = 'Photographer';
   else if (r.rates.blog && r.rates.blog !== 'N/A' && i % 5 === 0) creatorType = 'Blogger';
-  else if (r.work === 'Hobby with occasional paid opportunities' || (r.followers === '1K-5K' && i % 2 === 0)) creatorType = 'UGC creator';
-  else creatorType = (i % 2 === 0) ? 'Content creator' : 'Influencer';
+  else if (r.work === 'Hobby with occasional paid opportunities' || (r.followers === '1K - 5K' && i % 2 === 0)) creatorType = 'Freelancer';
+  else creatorType = (i % 2 === 0) ? 'Content Creator' : 'Influencer';
 
   let primaryPlatform;
   if (creatorType === 'Podcaster') primaryPlatform = 'Podcast';
@@ -328,13 +329,13 @@ function enrichResponse(r, i) {
 
   const fIdx = FOLLOWERS.indexOf(r.followers);
   let engagementRate;
-  if (fIdx <= 1) engagementRate = (i % 2 === 0) ? '10%+' : '5-10%';
-  else if (fIdx <= 3) engagementRate = (i % 2 === 0) ? '5-10%' : '3-5%';
-  else if (fIdx <= 5) engagementRate = (i % 2 === 0) ? '3-5%' : '1-3%';
-  else engagementRate = (i % 2 === 0) ? '1-3%' : 'Under 1%';
+  if (fIdx <= 1) engagementRate = (i % 2 === 0) ? '10%+' : '5% - 10%';
+  else if (fIdx <= 3) engagementRate = (i % 2 === 0) ? '5% - 10%' : '3% - 5%';
+  else if (fIdx <= 5) engagementRate = (i % 2 === 0) ? '3% - 5%' : '1% - 3%';
+  else engagementRate = (i % 2 === 0) ? '1% - 3%' : 'Under 1%';
 
   let inbound;
-  if (fIdx >= 5 || r.work === 'Full-time creator') inbound = (i % 3 === 0) ? 75 : 60;
+  if (fIdx >= 5 || r.work === 'Full-time creative') inbound = (i % 3 === 0) ? 75 : 60;
   else if (fIdx >= 3) inbound = 50;
   else inbound = (i % 3 === 0) ? 25 : 40;
   const inboundOutbound = inbound + '% inbound / ' + (100 - inbound) + '% outbound';
@@ -350,21 +351,21 @@ function enrichResponse(r, i) {
   const clientLocation = (i % 4 === 0) ? 'USA' : r.country;
 
   let training;
-  if (r.work === 'Hobby with occasional paid opportunities' || (fIdx <= 1 && i % 2 === 0)) training = ['Self-taught'];
+  if (r.work === 'Hobby with occasional paid opportunities' || (fIdx <= 1 && i % 2 === 0)) training = ["No, I'm fully self-taught"];
   else {
-    const tp = ['Free resources', 'Paid courses', 'Workshops / webinars', 'Group programmes', '1:1 coaching', 'Formal qualification'];
+    const tp = ['Free resources (YouTube, blogs, free webinars)', 'Paid online courses', 'Live workshops or webinars', 'Group programmes, memberships or communities', '1:1 coaching or mentoring', 'Formal qualification (degree, diploma, certificate)'];
     training = [tp[i % tp.length]];
     if (i % 3 === 0) training.push(tp[(i + 2) % tp.length]);
-    if (fIdx >= 4 && i % 2 === 0) training.push('1:1 coaching');
+    if (fIdx >= 4 && i % 2 === 0) training.push('1:1 coaching or mentoring');
     training = Array.from(new Set(training));
   }
   const spendOpts = ['$0', 'Under $250', '$250 to $1,000', '$1,000 to $3,000', '$3,000 to $10,000', '$10,000+'];
   let trainingSpend;
-  if (training.length === 1 && training[0] === 'Self-taught') trainingSpend = (i % 2 === 0) ? '$0' : 'Under $250';
-  else if (fIdx >= 5 || r.work === 'Full-time creator') trainingSpend = spendOpts[3 + (i % 3)];
+  if (training.length === 1 && training[0] === "No, I'm fully self-taught") trainingSpend = (i % 2 === 0) ? '$0' : 'Under $250';
+  else if (fIdx >= 5 || r.work === 'Full-time creative') trainingSpend = spendOpts[3 + (i % 3)];
   else trainingSpend = spendOpts[1 + (i % 3)];
 
-  const LB = ['0% (included)', '10-25%', '25-50%', '50-100%', '100-200%', '200%+'];
+  const LB = ['0%', '10-25%', '25-50%', '50-100%', '100-200%', '200%+'];
   const lbase = Math.max(0, Math.min(5, Math.round((fIdx / 6) * 5)));
   const ljit = (i % 3) - 1;
   const lic = (offset, naIfSmall) => {
@@ -384,17 +385,26 @@ function enrichResponse(r, i) {
 }
 
 const NICHE_MAP = { 'Outdoor': 'Outdoor/Adventure', 'Food': 'Food/Cooking', 'Beauty': 'Beauty/Skincare', 'Fitness': 'Fitness/Wellness', 'Parenting': 'Parenting/Family', 'Business': 'Business/Finance' };
+const FOLLOWER_MAP = { '1K-5K': '1K - 5K', '5K-10K': '5K - 10K', '10K-25K': '10K - 25K', '25K-50K': '25K - 50K', '50K-100K': '50K - 100K', '100K-500K': '100K - 500K', '500K+': '500K+' };
+const WORK_MAP = { 'Full-time creator': 'Full-time creative', 'Part-time': 'Part-time alongside other part-time work', 'Side hustle': 'Side hustle alongside other full-time work', 'Hobby with occasional paid opportunities': 'Hobby with occasional paid opportunities' };
+const RATE_MAP = { 'Free / product only': 'Contra', 'Under $100': '< $100', '$100-$250': '$100 to 250', '$250-$500': '$250 to 500', '$500-$1,000': '$500 to 1k', '$1,000-$2,500': '$1k - 2.5k', '$2,500-$5,000': '$2.5k - 5k', '$5,000-$10,000': '$5k - 10k', '$10,000+': '$10k - 20k', 'N/A': 'N/A' };
+const REVENUE_MAP = { '$0': '$0', 'Under $1K': '< $1K', '$1K-$5K': '$1K - $5K', '$5K-$10K': '$5K - $10K', '$10K-$25K': '$10K - $25K', '$25K-$50K': '$25K - $50K', '$50K-$100K': '$50K - $100K', '$100K+': '$100K+' };
+const TOTAL_MAP = { '$0': '$0', 'Under $1K': 'Under $1K', '$1K-$5K': '$1K - $5K', '$5K-$10K': '$5K - $10K', '$10K-$25K': '$10K - $25K', '$25K-$50K': '$25K - $50K', '$50K-$100K': '$50K - $100K', '$100K-$150K': '$100K - $150K', '$200K-$250K': '$200K - $250K', '$250K+': '$250K+' };
 RESPONSES.forEach((r, i) => {
   r.country = 'New Zealand';
   r.currency = 'NZD';
   r.niche = NICHE_MAP[r.niche] || r.niche;
+  r.followers = FOLLOWER_MAP[r.followers] || r.followers;
+  r.work = WORK_MAP[r.work] || r.work;
   Object.assign(r, enrichResponse(r, i));
+  Object.keys(r.rates).forEach(k => { r.rates[k] = RATE_MAP[r.rates[k]] || r.rates[k]; });
   r.revenue.digitalProducts = r.revenue.ownProducts;
   r.revenue.physicalProducts = (i % 3 === 0) ? 'Under $1K' : (i % 5 === 0 ? '$1K-$5K' : '$0');
   r.revenue.experiences = (i % 4 === 0) ? '$1K-$5K' : '$0';
   r.revenue.agencyServices = r.revenue.services;
   r.revenue.other = (i % 6 === 0) ? 'Under $1K' : '$0';
   if (r.revenue.total === '$100K+') { const hi = ['$100K-$150K', '$200K-$250K', '$250K+']; r.revenue.total = hi[i % 3]; }
+  Object.keys(r.revenue).forEach(k => { r.revenue[k] = (k === 'total' ? (TOTAL_MAP[r.revenue[k]] || r.revenue[k]) : (REVENUE_MAP[r.revenue[k]] || r.revenue[k])); });
 });
 
 // === HELPERS ===
@@ -431,21 +441,102 @@ function benchmarkOf(distribution) {
 
 // Parse rate or revenue bracket to numeric range for comparison
 function bracketToRange(bracket) {
-  if (!bracket || bracket === 'N/A') return null;
-  if (bracket === 'Free / product only' || bracket === '$0') return [0, 0];
-  if (bracket === 'Under $100') return [0, 100];
-  if (bracket === 'Under $1K') return [0, 1000];
-  const m = bracket.match(/\$?([\d,]+)K?\s*[-\u2013]\s*\$?([\d,]+)K?/);
-  if (m) {
-    const isK = bracket.includes('K');
-    return [parseInt(m[1].replace(/,/g, '')) * (isK ? 1000 : 1), parseInt(m[2].replace(/,/g, '')) * (isK ? 1000 : 1)];
-  }
-  const plus = bracket.match(/\$?([\d,]+)K?\+/);
-  if (plus) {
-    const isK = bracket.includes('K');
-    return [parseInt(plus[1].replace(/,/g, '')) * (isK ? 1000 : 1), Infinity];
-  }
+  if (!bracket || bracket === 'N/A' || bracket === 'n/a') return null;
+  const b = String(bracket).trim();
+  if (b === 'Contra' || b === '$0' || b === 'Free / product only') return [0, 0];
+  const toNum = (str) => {
+    if (str == null) return null;
+    let x = String(str).toLowerCase().replace(/[$,\s]/g, '');
+    let mult = 1;
+    if (x.endsWith('k')) { mult = 1000; x = x.slice(0, -1); }
+    const n = parseFloat(x);
+    return isNaN(n) ? null : n * mult;
+  };
+  let m = b.match(/^(?:under|<)\s*\$?([\d.,]+k?)/i);
+  if (m) { const hi = toNum(m[1]); return hi == null ? null : [0, hi]; }
+  m = b.match(/^\$?([\d.,]+k?)\s*\+$/i);
+  if (m) { const lo = toNum(m[1]); return lo == null ? null : [lo, Infinity]; }
+  m = b.match(/\$?([\d.,]+k?)\s*(?:to|[-\u2013])\s*\$?([\d.,]+k?)/i);
+  if (m) { const lo = toNum(m[1]); const hi = toNum(m[2]); if (lo != null && hi != null) return [lo, hi]; }
   return null;
+}
+
+// === LIVE DATA (Google Form responses, published as CSV) ===
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSvHA634ZaSJpNXTLoFqK0FJqVNhY0JVsJruCCW7SkwAoB1fAQUAhpA2uvWQ4d4YKk98NajxGCo8M4S/pub?gid=194493544&single=true&output=csv';
+
+const RATE_COLS = { feed: 'Feed post', shortform: 'Short-form video', story: 'Story set', ytIntegrated: 'YT integrated mention', ytDedicated: 'YT dedicated video', podcast: 'Podcast sponsorship', blog: 'Blog post (sponsored)', ugcImage: 'UGC imagery (per image)', ugcVideo: 'UGC short-form (per video)', proImage: 'Professional imagery (per image)', proVideo: 'Professional videography (per video)', event: 'Event appearance or speaking', ambassador: 'Ambassadorship' };
+const LIC_DURATION_COLS = { dur1mo: '1 month', dur3mo: '3 months', dur6mo: '6 months', dur12mo: '12 months', dur3yr: '3 years', durPerpetuity: 'In perpetuity (forever)' };
+const LIC_USAGE_COLS = { useOrganicReshare: "Organic reshare on brand's socials", usePaidSocial: 'Paid social ads', useWebsite: 'Brand website', usePrint: 'Print (magazines etc)', useOOH: 'Out of home (billboards etc)', useTV: 'TV / broadcast' };
+const LIC_TERRITORY_COLS = { terrOneCountry: 'One country only (e.g. NZ)', terrRegion: 'Wider region', terrGlobal: 'Global' };
+const REVENUE_COLS = { brandDeals: 'Brand partnerships', ugc: 'UGC', affiliate: 'Affiliate', adRevenue: 'Platform creator fund', digitalProducts: 'Digital products', physicalProducts: 'Physical products', experiences: 'Experiences', speaking: 'Speaking and appearances fees', podcast: 'Podcast sponsorships', memberships: 'Memberships', agencyServices: 'Agency services', other: 'Other' };
+
+function mapRowToResponse(row, idx) {
+  const keys = Object.keys(row);
+  const val = (key) => (key && row[key] != null ? String(row[key]).trim() : '');
+  const get = (sub) => val(keys.find(h => h.includes(sub)));
+  const getMatrix = (qSub, label) => val(keys.find(h => h.includes(qSub) && h.includes('[' + label + ']')));
+  const norm = (v, allowed) => (allowed.includes(v) ? v : 'N/A');
+  const splitMulti = (v) => (v ? v.split(/,\s*/).map(x => x.trim()).filter(Boolean) : []);
+
+  const rates = {};
+  Object.entries(RATE_COLS).forEach(([k, label]) => { rates[k] = norm(getMatrix("actually been paid", label), RATE_BRACKETS); });
+
+  const licensing = {};
+  Object.entries(LIC_DURATION_COLS).forEach(([k, label]) => { licensing[k] = norm(getMatrix('For each duration', label), LICENSING_BRACKETS); });
+  Object.entries(LIC_USAGE_COLS).forEach(([k, label]) => { licensing[k] = norm(getMatrix('For each usage type', label), LICENSING_BRACKETS); });
+  Object.entries(LIC_TERRITORY_COLS).forEach(([k, label]) => { licensing[k] = norm(getMatrix('For each territory', label), LICENSING_BRACKETS); });
+  licensing.exclusivity = norm(getMatrix('category exclusivity', 'Exclusivity'), LICENSING_BRACKETS);
+
+  const revenue = {};
+  Object.entries(REVENUE_COLS).forEach(([k, label]) => { revenue[k] = norm(getMatrix('annual ballpark income', label), REVENUE_BRACKETS); });
+  revenue.total = norm(get('Total annual income'), TOTAL_BRACKETS);
+
+  const trainingCell = get('undertaken training');
+  const training = TRAINING_OPTIONS.filter(o => trainingCell.includes(o));
+
+  const dvr = get('close deals over or under');
+  const dealVsRate = (dvr === '1' || dvr === '2') ? 'Usually under rate card' : (dvr === '3') ? 'On par with rate card' : (dvr === '4' || dvr === '5') ? 'Often over rate card' : dvr;
+
+  const inbound = get('[Inbound]');
+  const outbound = get('[Outbound]');
+  const inboundOutbound = (inbound || outbound) ? (inbound + ' inbound / ' + outbound + ' outbound') : '';
+
+  const structureKey = keys.find(h => h.trim() === 'Column 8' || h.toLowerCase().includes('structure'));
+
+  return {
+    id: idx + 1,
+    country: get('Country of Residence'),
+    age: get('Age Bracket'),
+    gender: get('Gender'),
+    years: get('Years Creating'),
+    work: get('describe your creator work'),
+    creatorType: get('describe / introduce yourself'),
+    followers: get('Follower Count on your Primary'),
+    followersAll: get('Follower Count across all'),
+    niche: get('Niche or Content Category (Select the primary'),
+    secondaryNiches: splitMulti(get('Secondary niches')),
+    primaryPlatform: get('Primary Platform (where'),
+    secondaryPlatforms: splitMulti(get('Secondary Platforms')),
+    engagementRate: get('Average Engagement Rate'),
+    currency: get('default currency'),
+    clientLocation: get('country/region are the majority'),
+    inboundOutbound,
+    dealVsRate,
+    chargesLicensing: get('charge extra for usage rights'),
+    baseRateIncludes: get('base rate typically include'),
+    training,
+    trainingSpend: get('invested in growing'),
+    rates,
+    licensing,
+    revenue,
+    business: {
+      structure: val(structureKey),
+      gstRegistered: get('GST registered'),
+      ratesShown: 'GST exclusive',
+      contracts: get('written agreement'),
+      agent: get('manager or agency'),
+    },
+  };
 }
 
 // === COMPONENTS ===
@@ -799,12 +890,12 @@ function parseQuestion(q) {
   // Detect follower size mention
   let followerFilter = null;
   if (lower.match(/500k\+|500,000\+|five hundred k/)) followerFilter = '500K+';
-  else if (lower.match(/100k|100,000|hundred k/)) followerFilter = '100K-500K';
-  else if (lower.match(/50k|50,000|fifty k/)) followerFilter = '50K-100K';
-  else if (lower.match(/25k|25,000|twenty-five k/)) followerFilter = '25K-50K';
-  else if (lower.match(/10k|10,000|ten k/)) followerFilter = '10K-25K';
-  else if (lower.match(/5k|5,000|five k/)) followerFilter = '5K-10K';
-  else if (lower.match(/1k|1,000/)) followerFilter = '1K-5K';
+  else if (lower.match(/100k|100,000|hundred k/)) followerFilter = '100K - 500K';
+  else if (lower.match(/50k|50,000|fifty k/)) followerFilter = '50K - 100K';
+  else if (lower.match(/25k|25,000|twenty-five k/)) followerFilter = '25K - 50K';
+  else if (lower.match(/10k|10,000|ten k/)) followerFilter = '10K - 25K';
+  else if (lower.match(/5k|5,000|five k/)) followerFilter = '5K - 10K';
+  else if (lower.match(/1k|1,000/)) followerFilter = '1K - 5K';
 
   // Country
   let countryFilter = null;
@@ -819,9 +910,9 @@ function parseQuestion(q) {
 
   // Stage
   let workFilter = null;
-  if (lower.includes('full-time') || lower.includes('full time')) workFilter = 'Full-time creator';
-  else if (lower.includes('part-time') || lower.includes('part time')) workFilter = 'Part-time';
-  else if (lower.includes('side hustle') || lower.includes('side income')) workFilter = 'Side hustle';
+  if (lower.includes('full-time') || lower.includes('full time')) workFilter = 'Full-time creative';
+  else if (lower.includes('part-time') || lower.includes('part time')) workFilter = 'Part-time alongside other part-time work';
+  else if (lower.includes('side hustle') || lower.includes('side income')) workFilter = 'Side hustle alongside other full-time work';
   else if (lower.includes('hobby')) workFilter = 'Hobby with occasional paid opportunities';
 
   // Detect revenue/income threshold (e.g. "earning $100K+", "make $50K", "over $25k revenue")
@@ -875,8 +966,8 @@ function parseQuestion(q) {
   };
 }
 
-function runQuery(parsed) {
-  let pool = RESPONSES;
+function runQuery(parsed, allResponses) {
+  let pool = allResponses;
 
   // Apply filters
   if (parsed.countryFilter) pool = pool.filter(r => r.country === parsed.countryFilter);
@@ -1055,6 +1146,29 @@ export default function CreatorRatesTool() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+  const [responses, setResponses] = useState([]);
+  const [dataState, setDataState] = useState('loading');
+  const [lastUpdated, setLastUpdated] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(CSV_URL)
+      .then(r => r.text())
+      .then(text => {
+        if (cancelled) return;
+        const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+        const rows = (parsed.data || []).filter(row => Object.values(row).some(v => v && String(v).trim()));
+        setResponses(rows.map((row, idx) => mapRowToResponse(row, idx)));
+        const last = rows[rows.length - 1];
+        if (last) {
+          const tsKey = Object.keys(last).find(h => h.toLowerCase().includes('timestamp'));
+          const d = tsKey ? new Date(last[tsKey]) : null;
+          setLastUpdated(d && !isNaN(d.getTime()) ? d.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' }) : null);
+        }
+        setDataState('ready');
+      })
+      .catch(() => { if (!cancelled) setDataState('error'); });
+    return () => { cancelled = true; };
+  }, []);
 
   const toggleFilter = (category, value) => {
     setFilters(prev => ({
@@ -1067,7 +1181,7 @@ export default function CreatorRatesTool() {
 
   const clearFilters = () => setFilters({ creatorTypes: [], niches: [], followers: [], work: [], years: [], primaryPlatforms: [], engagement: [], training: [] });
 
-  const filteredResponses = useMemo(() => RESPONSES.filter(r => {
+  const filteredResponses = useMemo(() => responses.filter(r => {
     if (filters.creatorTypes.length && !filters.creatorTypes.includes(r.creatorType)) return false;
     if (filters.niches.length && !filters.niches.includes(r.niche)) return false;
     if (filters.followers.length && !filters.followers.includes(r.followers)) return false;
@@ -1077,7 +1191,7 @@ export default function CreatorRatesTool() {
     if (filters.engagement.length && !filters.engagement.includes(r.engagementRate)) return false;
     if (filters.training.length && !filters.training.some(t => (r.training || []).includes(t))) return false;
     return true;
-  }), [filters]);
+  }), [filters, responses]);
 
   const hasFilters = filters.creatorTypes.length || filters.niches.length || filters.followers.length || filters.work.length || filters.years.length || filters.primaryPlatforms.length || filters.engagement.length || filters.training.length;
   const activeFilterCount = Object.values(filters).reduce((n, arr) => n + arr.length, 0);
@@ -1090,7 +1204,7 @@ export default function CreatorRatesTool() {
   const handleQuestion = () => {
     if (!question.trim()) { setQuestionResult(null); return; }
     const parsed = parseQuestion(question);
-    const result = runQuery(parsed);
+    const result = runQuery(parsed, responses);
     setQuestionResult(result);
   };
 
@@ -1169,7 +1283,7 @@ export default function CreatorRatesTool() {
         <p style={styles.sectionSubtitle}>Every deliverable, every rate distribution, on one page. Filters on the left narrow the data.</p>
 
         <div style={styles.matchBox}>
-          <strong>{filteredResponses.length}</strong> {filteredResponses.length === 1 ? 'creator matches' : 'creators match'} your filters out of {RESPONSES.length} total responses
+          <strong>{filteredResponses.length}</strong> {filteredResponses.length === 1 ? 'creator matches' : 'creators match'} your filters out of {responses.length} total responses
         </div>
 
         {DELIVERABLES.map(d => {
@@ -1403,6 +1517,19 @@ export default function CreatorRatesTool() {
     );
   }
 
+  if (dataState === 'loading') {
+    mainContent = (<div style={{ padding: '48px 20px', textAlign: 'center', color: C.inkSoft, fontSize: '14px' }}>Loading the latest data\u2026</div>);
+  } else if (dataState === 'error') {
+    mainContent = (
+      <div style={{ backgroundColor: `${C.purple}10`, borderLeft: `3px solid ${C.purple}`, padding: '20px 22px', borderRadius: '6px', color: C.ink }}>
+        <div style={{ fontWeight: 700, marginBottom: '6px', fontSize: '15px' }}>Couldn't load the data</div>
+        <div style={{ fontSize: '14px', lineHeight: '1.55' }}>Please refresh in a moment. If it keeps happening, the responses sheet may have been unpublished.</div>
+      </div>
+    );
+  } else if (dataState === 'ready' && responses.length === 0) {
+    mainContent = (<div style={{ padding: '48px 20px', textAlign: 'center', color: C.inkSoft, fontSize: '14px' }}>No responses yet. Be the first to add yours.</div>);
+  }
+
   return (
     <div style={{ ...styles.container, padding: isMobile ? '16px 14px' : '32px 24px' }}>
       <style>{fontImport}</style>
@@ -1411,12 +1538,13 @@ export default function CreatorRatesTool() {
         <h1 style={{ ...styles.title, fontSize: isMobile ? '28px' : '40px' }}>Creative Industry Rates Survey</h1>
         <p style={styles.subtitle}>A free, anonymous, community-built picture of what creators across Aotearoa New Zealand actually charge, across every niche and every kind of creative work, from UGC to photography to podcasting. All rates in NZD. Explore the data, find your benchmark, and add your own.</p>
         <div style={styles.statsBar}>
-          <span style={styles.stat}><span style={styles.statNumber}>{RESPONSES.length}</span> responses</span>
+          <span style={styles.stat}><span style={styles.statNumber}>{responses.length}</span> responses</span>
           <span style={styles.stat}><span style={styles.statNumber}>{NICHES.length}</span> niches</span>
           <span style={styles.stat}><span style={styles.statNumber}>{DELIVERABLES.length}</span> deliverables tracked</span>
           <span style={styles.stat}><span style={styles.statNumber}>{REVENUE_STREAMS.length - 1}</span> revenue streams</span>
         </div>
-        <a href={FORM_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '20px', padding: '12px 22px', backgroundColor: C.darkGreen, color: C.offWhite, borderRadius: '6px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', letterSpacing: '0.3px' }}>+ Add your rates</a>
+        <div style={{ fontSize: '12px', color: C.inkSoft, marginTop: '10px' }}>{dataState === 'loading' ? 'Loading the latest responses\u2026' : dataState === 'error' ? 'Live data unavailable right now.' : `Live data, updated as responses come in${lastUpdated ? ' \u00b7 latest response ' + lastUpdated : ''}.`}</div>
+        <a href={FORM_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '16px', padding: '12px 22px', backgroundColor: C.darkGreen, color: C.offWhite, borderRadius: '6px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', letterSpacing: '0.3px' }}>+ Add your rates</a>
       </header>
 
       <div style={styles.tabs}>
