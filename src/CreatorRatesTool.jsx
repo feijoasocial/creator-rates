@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Search, SlidersHorizontal, TrendingUp, DollarSign, MapPin, Users, Briefcase, Camera, X, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, SlidersHorizontal, TrendingUp, DollarSign, FileText, MapPin, Users, Briefcase, Camera, X, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 
 // === BRAND COLOURS (Feijoa Social) ===
 const C = {
@@ -279,7 +279,7 @@ const LICENSING_TYPES = [
 
 const FOLLOWERS = ['1K-5K', '5K-10K', '10K-25K', '25K-50K', '50K-100K', '100K-500K', '500K+'];
 const COUNTRIES = ['New Zealand', 'Australia', 'United Kingdom', 'United States'];
-const NICHES = ['Travel', 'Outdoor', 'Lifestyle', 'Food', 'Fashion', 'Beauty', 'Fitness', 'Parenting', 'Business'];
+const NICHES = ['Travel', 'Outdoor/Adventure', 'Food/Cooking', 'Fashion', 'Beauty/Skincare', 'Fitness/Wellness', 'Parenting/Family', 'Business/Finance', 'Tech/Gaming', 'Lifestyle', 'Comedy/Entertainment', 'Education/Tutorials', 'Other'];
 const WORK = ['Full-time creator', 'Part-time', 'Side hustle', 'Hobby with occasional paid opportunities'];
 const YEARS = ['Under 1', '1-2', '3-5', '6-10', '10+'];
 
@@ -287,6 +287,7 @@ const YEARS = ['Under 1', '1-2', '3-5', '6-10', '10+'];
 const CREATOR_TYPES = ['Content creator', 'Influencer', 'Photographer', 'Videographer', 'Blogger', 'Podcaster', 'UGC creator'];
 const CURRENCIES = ['NZD', 'AUD', 'USD', 'GBP'];
 const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Podcast', 'Blog', 'Substack', 'LinkedIn'];
+const ENGAGEMENT_LEVELS = ['Under 1%', '1-3%', '3-5%', '5-10%', '10%+'];
 
 function enrichResponse(r, i) {
   let creatorType;
@@ -332,9 +333,11 @@ function enrichResponse(r, i) {
   return { creatorType, primaryPlatform, secondaryPlatforms, engagementRate, inboundOutbound, secondaryNiche, followersAll, dealVsRate, clientLocation };
 }
 
+const NICHE_MAP = { 'Outdoor': 'Outdoor/Adventure', 'Food': 'Food/Cooking', 'Beauty': 'Beauty/Skincare', 'Fitness': 'Fitness/Wellness', 'Parenting': 'Parenting/Family', 'Business': 'Business/Finance' };
 RESPONSES.forEach((r, i) => {
   r.country = 'New Zealand';
   r.currency = 'NZD';
+  r.niche = NICHE_MAP[r.niche] || r.niche;
   Object.assign(r, enrichResponse(r, i));
 });
 
@@ -399,7 +402,6 @@ function DistributionChart({ distribution, accentColor = C.darkGreen }) {
   }
 
   const bm = benchmarkOf(distribution);
-  const medianColor = accentColor === C.purple ? C.darkGreen : C.purple;
 
   return (
     <div style={{ marginTop: '8px' }}>
@@ -407,11 +409,10 @@ function DistributionChart({ distribution, accentColor = C.darkGreen }) {
         const widthPct = (d.count / maxCount) * 100;
         const sharePct = totalCount > 0 ? Math.round((d.count / totalCount) * 100) : 0;
         const isMedian = bm && i === bm.medianIdx;
-        const inIqr = bm && i >= bm.p25 && i <= bm.p75;
-        const barColor = isMedian ? medianColor : (inIqr ? accentColor : `${accentColor}55`);
+        const barColor = isMedian ? C.purple : C.darkGreen;
         return (
-          <div key={d.bracket} style={{ display: 'grid', gridTemplateColumns: '160px 1fr 80px', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
-            <div style={{ fontSize: '13px', color: C.ink, display: 'flex', alignItems: 'center', gap: '6px' }}>{d.bracket}{isMedian && <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: medianColor }}>median</span>}</div>
+          <div key={d.bracket} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 48px', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+            <div style={{ fontSize: '13px', color: C.ink, display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>{d.bracket}{isMedian && <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: C.purple }}>median</span>}</div>
             <div style={{ height: '24px', backgroundColor: C.borderSoft, borderRadius: '3px', overflow: 'hidden', position: 'relative' }}>
               {d.count > 0 && (
                 <div style={{ height: '100%', width: `${widthPct}%`, backgroundColor: barColor, borderRadius: '3px', transition: 'width 0.3s', display: 'flex', alignItems: 'center', paddingLeft: '8px' }}>
@@ -434,13 +435,10 @@ function BenchmarkHeadline({ distribution, noun = 'rate' }) {
   const bm = benchmarkOf(distribution);
   if (!bm) return null;
   const med = distribution[bm.medianIdx] && distribution[bm.medianIdx].bracket;
-  const lo = distribution[bm.p25] && distribution[bm.p25].bracket;
-  const hi = distribution[bm.p75] && distribution[bm.p75].bracket;
-  const rangeText = (lo === hi) ? lo : `${lo} to ${hi}`;
   return (
     <div style={{ backgroundColor: `${C.purple}10`, borderLeft: `3px solid ${C.purple}`, padding: '14px 18px', borderRadius: '4px', marginBottom: '20px' }}>
       <div style={{ fontSize: '14px', color: C.ink }}>
-        Typical {noun}: <strong style={{ color: C.purple }}>{med}</strong>. Middle 50% sit <strong>{rangeText}</strong>.
+        Typical {noun} (the median): <strong style={{ color: C.purple }}>{med}</strong>.
       </div>
     </div>
   );
@@ -492,8 +490,8 @@ function CreatorModal({ creator, onClose }) {
       padding: '8px', color: C.ink, borderRadius: '50%',
     },
     title: {
-      fontFamily: "'Playfair Display', Georgia, serif",
-      fontSize: '24px', color: C.purple, margin: '0 0 6px 0',
+      fontFamily: "'Lato', sans-serif",
+      fontSize: '23px', fontWeight: 700, color: C.darkGreen, margin: '0 0 6px 0',
     },
     subtitle: {
       fontSize: '14px', color: C.inkSoft, marginBottom: '24px',
@@ -504,7 +502,7 @@ function CreatorModal({ creator, onClose }) {
     },
     sectionTitle: {
       fontSize: '12px', fontWeight: 700, letterSpacing: '0.5px',
-      textTransform: 'uppercase', color: C.purple, marginBottom: '12px',
+      textTransform: 'uppercase', color: C.darkGreen, marginBottom: '12px',
     },
     grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' },
     item: {
@@ -621,40 +619,47 @@ function CreatorModal({ creator, onClose }) {
 // === RAW DATA TABLE ===
 function RawDataTable({ responses, onOpen }) {
   const [expanded, setExpanded] = useState(false);
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState('desc');
+
+  const accessor = (c, key) => {
+    if (key === 'id') return c.id;
+    if (key === 'creatorType') return c.creatorType || '';
+    if (key === 'followers') return FOLLOWERS.indexOf(c.followers);
+    if (key === 'niche') return c.niche || '';
+    if (key === 'primaryPlatform') return c.primaryPlatform || '';
+    if (key === 'work') return c.work || '';
+    if (key === 'years') return YEARS.indexOf(c.years);
+    if (key === 'total') { const r = bracketToRange(c.revenue.total); return r ? r[0] : -1; }
+    if (key && key.indexOf('rate:') === 0) { const r = bracketToRange(c.rates[key.slice(5)]); return r ? r[0] : -1; }
+    return '';
+  };
+
+  const sorted = sortKey
+    ? [...responses].sort((a, b) => {
+        const av = accessor(a, sortKey), bv = accessor(b, sortKey);
+        const cmp = (typeof av === 'number' && typeof bv === 'number') ? av - bv : String(av).localeCompare(String(bv));
+        return sortDir === 'asc' ? cmp : -cmp;
+      })
+    : responses;
+
+  const toggleSort = (key) => {
+    if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir('desc'); }
+  };
+  const mark = (key) => (sortKey === key ? (sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : '');
 
   const styles = {
-    wrap: {
-      marginTop: '32px', paddingTop: '24px',
-      borderTop: `1px solid ${C.borderSoft}`,
-    },
-    toggleBtn: {
-      display: 'flex', alignItems: 'center', gap: '8px',
-      background: 'none', border: `1px solid ${C.border}`,
-      borderRadius: '6px', padding: '10px 16px', cursor: 'pointer',
-      fontSize: '13px', fontFamily: "'Lato', sans-serif",
-      color: C.ink, fontWeight: 600,
-    },
+    wrap: { marginTop: '32px', paddingTop: '24px', borderTop: `1px solid ${C.borderSoft}` },
+    toggleBtn: { display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: `1px solid ${C.border}`, borderRadius: '6px', padding: '10px 16px', cursor: 'pointer', fontSize: '13px', fontFamily: "'Lato', sans-serif", color: C.ink, fontWeight: 600 },
     helper: { fontSize: '12px', color: C.inkSoft, marginLeft: '12px' },
-    tableWrap: { marginTop: '16px', overflowX: 'auto', borderRadius: '6px', border: `1px solid ${C.borderSoft}` },
-    table: { width: '100%', borderCollapse: 'collapse', fontSize: '12px', minWidth: '1200px' },
-    th: {
-      textAlign: 'left', padding: '10px 8px',
-      backgroundColor: `${C.darkGreen}15`,
-      fontWeight: 700, fontSize: '11px', letterSpacing: '0.3px',
-      textTransform: 'uppercase', color: C.ink,
-      borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap',
-    },
-    td: {
-      padding: '8px', borderBottom: `1px solid ${C.borderSoft}`,
-      color: C.ink, whiteSpace: 'nowrap',
-    },
+    tableWrap: { marginTop: '16px', overflowX: 'auto', overflowY: 'auto', maxHeight: '520px', borderRadius: '6px', border: `1px solid ${C.borderSoft}` },
+    table: { width: '100%', borderCollapse: 'collapse', fontSize: '12px', minWidth: '1100px' },
+    th: { textAlign: 'left', padding: '10px 8px', backgroundColor: C.offWhite, fontWeight: 700, fontSize: '11px', letterSpacing: '0.3px', textTransform: 'uppercase', color: C.ink, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap', cursor: 'pointer', position: 'sticky', top: 0, zIndex: 1 },
+    td: { padding: '8px', borderBottom: `1px solid ${C.borderSoft}`, color: C.ink, whiteSpace: 'nowrap' },
     tdMuted: { color: C.inkSoft, fontStyle: 'italic' },
     tdHighlight: { fontWeight: 700, color: C.darkGreen },
-    detailBtn: {
-      background: 'none', border: 'none', cursor: 'pointer',
-      color: C.purple, fontWeight: 600, fontSize: '11px',
-      display: 'flex', alignItems: 'center', gap: '4px',
-    },
+    detailBtn: { background: 'none', border: 'none', cursor: 'pointer', color: C.darkGreen, fontWeight: 600, fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' },
     row: { transition: 'background-color 0.1s' },
   };
 
@@ -665,7 +670,7 @@ function RawDataTable({ responses, onOpen }) {
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           {expanded ? 'Hide raw data' : 'Show raw data'} ({responses.length} {responses.length === 1 ? 'creator' : 'creators'})
         </button>
-        <span style={styles.helper}>One row per creator. Click any row to see the full breakdown.</span>
+        <span style={styles.helper}>One row per creator. Tap a column to sort, or any row for the full breakdown.</span>
       </div>
 
       {expanded && (
@@ -673,20 +678,20 @@ function RawDataTable({ responses, onOpen }) {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>#</th>
-                <th style={styles.th}>Type</th>
-                <th style={styles.th}>Followers</th>
-                <th style={styles.th}>Niche</th>
-                <th style={styles.th}>Platform</th>
-                <th style={styles.th}>Stage</th>
-                <th style={styles.th}>Yrs</th>
-                <th style={{ ...styles.th, backgroundColor: `${C.purple}15`, color: C.purple }}>Total revenue</th>
-                {DELIVERABLES.map(d => <th key={d.key} style={styles.th}>{d.short}</th>)}
-                <th style={styles.th}></th>
+                <th style={styles.th} onClick={() => toggleSort('id')}>#{mark('id')}</th>
+                <th style={styles.th} onClick={() => toggleSort('creatorType')}>Type{mark('creatorType')}</th>
+                <th style={styles.th} onClick={() => toggleSort('followers')}>Followers{mark('followers')}</th>
+                <th style={styles.th} onClick={() => toggleSort('niche')}>Niche{mark('niche')}</th>
+                <th style={styles.th} onClick={() => toggleSort('primaryPlatform')}>Platform{mark('primaryPlatform')}</th>
+                <th style={styles.th} onClick={() => toggleSort('work')}>Stage{mark('work')}</th>
+                <th style={styles.th} onClick={() => toggleSort('years')}>Yrs{mark('years')}</th>
+                <th style={{ ...styles.th, color: C.darkGreen }} onClick={() => toggleSort('total')}>Total revenue{mark('total')}</th>
+                {DELIVERABLES.map(d => <th key={d.key} style={styles.th} onClick={() => toggleSort('rate:' + d.key)}>{d.short}{mark('rate:' + d.key)}</th>)}
+                <th style={{ ...styles.th, cursor: 'default' }}></th>
               </tr>
             </thead>
             <tbody>
-              {responses.map(c => (
+              {sorted.map(c => (
                 <tr key={c.id} style={styles.row} onMouseEnter={e => e.currentTarget.style.backgroundColor = `${C.lightGreen}20`} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <td style={styles.td}>#{c.id}</td>
                   <td style={styles.td}>{c.creatorType}</td>
@@ -697,9 +702,7 @@ function RawDataTable({ responses, onOpen }) {
                   <td style={styles.td}>{c.years}</td>
                   <td style={{ ...styles.td, ...styles.tdHighlight }}>{c.revenue.total}</td>
                   {DELIVERABLES.map(d => (
-                    <td key={d.key} style={{ ...styles.td, ...(c.rates[d.key] === 'N/A' ? styles.tdMuted : {}) }}>
-                      {c.rates[d.key]}
-                    </td>
+                    <td key={d.key} style={{ ...styles.td, ...(c.rates[d.key] === 'N/A' ? styles.tdMuted : {}) }}>{c.rates[d.key]}</td>
                   ))}
                   <td style={styles.td}>
                     <button style={styles.detailBtn} onClick={() => onOpen(c)}>
@@ -934,7 +937,7 @@ function IntroPanel({ onClose }) {
   return (
     <div style={{ backgroundColor: C.white, border: `1px solid ${C.border}`, borderRadius: '8px', padding: '20px 24px', marginBottom: '24px', position: 'relative' }}>
       <button onClick={onClose} aria-label="Close" style={{ position: 'absolute', top: '14px', right: '14px', background: 'none', border: 'none', cursor: 'pointer', color: C.inkSoft }}><X size={18} /></button>
-      <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '18px', color: C.purple, margin: '0 0 4px 0' }}>New here? How to read the data</h3>
+      <h3 style={{ fontFamily: "'Lato', sans-serif", fontWeight: 700, fontSize: '18px', color: C.darkGreen, margin: '0 0 4px 0' }}>New here? How to read the data</h3>
       <p style={{ fontSize: '13px', color: C.inkSoft, margin: '0 0 16px 0' }}>A 20-second tour so you can find what you need.</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '18px' }}>
         {steps.map((step, i) => (
@@ -949,8 +952,24 @@ function IntroPanel({ onClose }) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', paddingTop: '16px', borderTop: `1px solid ${C.borderSoft}` }}>
         <span style={{ fontSize: '13px', color: C.ink }}>Haven't added your rates yet?</span>
-        <a href={FORM_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', backgroundColor: C.darkGreen, color: C.offWhite, borderRadius: '6px', fontSize: '13px', fontWeight: 700, textDecoration: 'none' }}>Complete the survey \u2192</a>
+        <a href={FORM_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', backgroundColor: C.darkGreen, color: C.offWhite, borderRadius: '6px', fontSize: '13px', fontWeight: 700, textDecoration: 'none' }}>Complete the survey</a>
       </div>
+    </div>
+  );
+}
+
+// === ACTIVE FILTER CHIPS ===
+function ActiveFilters({ filters, onRemove, onClear }) {
+  const chips = [];
+  Object.entries(filters).forEach(([cat, vals]) => (vals || []).forEach(v => chips.push([cat, v])));
+  if (!chips.length) return null;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', marginBottom: '20px' }}>
+      <span style={{ fontSize: '12px', color: C.inkSoft, marginRight: '2px' }}>Filtering:</span>
+      {chips.map(([cat, v]) => (
+        <button key={cat + v} onClick={() => onRemove(cat, v)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', fontSize: '12px', backgroundColor: `${C.darkGreen}12`, border: `1px solid ${C.border}`, borderRadius: '14px', color: C.ink, cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>{v}<X size={11} /></button>
+      ))}
+      <button onClick={onClear} style={{ background: 'none', border: 'none', color: C.darkGreen, fontSize: '12px', cursor: 'pointer', textDecoration: 'underline', fontFamily: "'Lato', sans-serif" }}>Clear all</button>
     </div>
   );
 }
@@ -958,7 +977,7 @@ function IntroPanel({ onClose }) {
 // === MAIN COMPONENT ===
 export default function CreatorRatesTool() {
   const [mode, setMode] = useState('explore');
-  const [filters, setFilters] = useState({ creatorTypes: [], niches: [], followers: [], work: [], years: [] });
+  const [filters, setFilters] = useState({ creatorTypes: [], niches: [], followers: [], work: [], years: [], primaryPlatforms: [], engagement: [] });
   const [exploreDeliverable, setExploreDeliverable] = useState('shortform');
   const [question, setQuestion] = useState('');
   const [questionResult, setQuestionResult] = useState(null);
@@ -971,6 +990,13 @@ export default function CreatorRatesTool() {
     setShowIntro(false);
     if (typeof window !== 'undefined') window.localStorage.setItem('crt_intro_dismissed', '1');
   };
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const toggleFilter = (category, value) => {
     setFilters(prev => ({
@@ -981,7 +1007,7 @@ export default function CreatorRatesTool() {
     }));
   };
 
-  const clearFilters = () => setFilters({ creatorTypes: [], niches: [], followers: [], work: [], years: [] });
+  const clearFilters = () => setFilters({ creatorTypes: [], niches: [], followers: [], work: [], years: [], primaryPlatforms: [], engagement: [] });
 
   const filteredResponses = useMemo(() => RESPONSES.filter(r => {
     if (filters.creatorTypes.length && !filters.creatorTypes.includes(r.creatorType)) return false;
@@ -989,10 +1015,13 @@ export default function CreatorRatesTool() {
     if (filters.followers.length && !filters.followers.includes(r.followers)) return false;
     if (filters.work.length && !filters.work.includes(r.work)) return false;
     if (filters.years.length && !filters.years.includes(r.years)) return false;
+    if (filters.primaryPlatforms.length && !filters.primaryPlatforms.includes(r.primaryPlatform)) return false;
+    if (filters.engagement.length && !filters.engagement.includes(r.engagementRate)) return false;
     return true;
   }), [filters]);
 
-  const hasFilters = filters.creatorTypes.length || filters.niches.length || filters.followers.length || filters.work.length || filters.years.length;
+  const hasFilters = filters.creatorTypes.length || filters.niches.length || filters.followers.length || filters.work.length || filters.years.length || filters.primaryPlatforms.length || filters.engagement.length;
+  const activeFilterCount = Object.values(filters).reduce((n, arr) => n + arr.length, 0);
 
   const exploreData = useMemo(() => {
     const values = filteredResponses.map(r => r.rates[exploreDeliverable]);
@@ -1016,30 +1045,30 @@ export default function CreatorRatesTool() {
     statNumber: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: '22px', fontWeight: '500', color: C.darkGreen },
     tabs: { display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: `1px solid ${C.border}`, flexWrap: 'wrap' },
     tab: { padding: '12px 18px', background: 'none', border: 'none', borderBottom: '2px solid transparent', fontFamily: "'Lato', sans-serif", fontSize: '14px', fontWeight: '600', color: C.inkSoft, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px' },
-    tabActive: { color: C.purple, borderBottomColor: C.purple },
+    tabActive: { color: C.darkGreen, borderBottomColor: C.darkGreen },
     layout: { display: 'grid', gridTemplateColumns: '280px 1fr', gap: '24px' },
-    sidebar: { backgroundColor: C.white, borderRadius: '8px', padding: '24px', border: `1px solid ${C.border}`, height: 'fit-content', position: 'sticky', top: '24px' },
-    sidebarTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: '18px', margin: '0 0 16px 0', color: C.ink },
+    sidebar: { backgroundColor: C.white, borderRadius: '8px', padding: '24px', border: `1px solid ${C.border}`, height: 'fit-content', maxHeight: 'calc(100vh - 48px)', overflowY: 'auto', position: 'sticky', top: '24px' },
+    sidebarTitle: { fontFamily: "'Lato', sans-serif", fontWeight: 700, fontSize: '16px', margin: '0 0 16px 0', color: C.ink },
     main: { backgroundColor: C.white, borderRadius: '8px', padding: '32px', border: `1px solid ${C.border}`, minWidth: 0 },
     sectionTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: '24px', fontWeight: '500', margin: '0 0 8px 0', color: C.ink },
     sectionSubtitle: { fontSize: '14px', color: C.inkSoft, marginBottom: '24px', lineHeight: '1.55' },
     matchBox: { backgroundColor: `${C.lightGreen}40`, borderLeft: `3px solid ${C.darkGreen}`, padding: '14px 18px', borderRadius: '4px', fontSize: '13px', color: C.ink, marginBottom: '24px' },
-    smallSample: { backgroundColor: `${C.purple}15`, borderLeft: `3px solid ${C.purple}`, padding: '14px 18px', borderRadius: '4px', fontSize: '13px', color: C.ink, marginBottom: '24px', fontStyle: 'italic' },
+    smallSample: { backgroundColor: `${C.darkGreen}12`, borderLeft: `3px solid ${C.darkGreen}`, padding: '14px 18px', borderRadius: '4px', fontSize: '13px', color: C.ink, marginBottom: '24px', fontStyle: 'italic' },
     select: { width: '100%', padding: '12px 14px', fontSize: '15px', fontFamily: "'Lato', sans-serif", color: C.ink, backgroundColor: C.offWhite, border: `1px solid ${C.border}`, borderRadius: '6px', cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232a3d1e' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center', backgroundSize: '12px' },
     label: { display: 'block', fontSize: '12px', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', color: C.inkSoft, marginBottom: '8px' },
     chartBlock: { marginBottom: '32px', paddingBottom: '24px', borderBottom: `1px solid ${C.borderSoft}` },
     chartHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' },
-    chartTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: '17px', color: C.ink, margin: 0 },
+    chartTitle: { fontFamily: "'Lato', sans-serif", fontWeight: 700, fontSize: '16px', color: C.ink, margin: 0 },
     chartMeta: { fontSize: '12px', color: C.inkSoft, fontStyle: 'italic' },
-    clearBtn: { background: 'none', border: 'none', color: C.purple, fontSize: '13px', cursor: 'pointer', textDecoration: 'underline', padding: 0, marginTop: '4px', fontFamily: "'Lato', sans-serif" },
+    clearBtn: { background: 'none', border: 'none', color: C.darkGreen, fontSize: '13px', cursor: 'pointer', textDecoration: 'underline', padding: 0, marginTop: '4px', fontFamily: "'Lato', sans-serif" },
     questionBox: { width: '100%', padding: '16px', fontSize: '16px', fontFamily: "'Lato', sans-serif", color: C.ink, backgroundColor: C.offWhite, border: `1px solid ${C.border}`, borderRadius: '6px', resize: 'vertical', minHeight: '70px', marginBottom: '14px', boxSizing: 'border-box' },
     primaryBtn: { padding: '12px 24px', backgroundColor: C.darkGreen, color: C.offWhite, border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', fontFamily: "'Lato', sans-serif", letterSpacing: '0.3px' },
     exampleChip: { display: 'inline-block', padding: '6px 12px', margin: '0 6px 6px 0', fontSize: '13px', backgroundColor: C.offWhite, border: `1px solid ${C.border}`, borderRadius: '4px', color: C.ink, cursor: 'pointer', fontFamily: "'Lato', sans-serif" },
-    disclaimer: { marginTop: '32px', padding: '20px', backgroundColor: `${C.purple}10`, borderRadius: '6px', fontSize: '13px', color: C.inkSoft, lineHeight: '1.6' },
+    disclaimer: { marginTop: '32px', padding: '20px', backgroundColor: `${C.darkGreen}0d`, borderRadius: '6px', fontSize: '13px', color: C.inkSoft, lineHeight: '1.6' },
     disclaimerTitle: { fontWeight: '700', color: C.ink, marginBottom: '6px' },
   };
 
-  const fontImport = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Lato:wght@400;600;700&display=swap');`;
+  const fontImport = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Lato:wght@400;600;700&display=swap'); html, body { margin: 0; padding: 0; background: ${C.offWhite}; }`;
 
   // === MAIN CONTENT ===
   let mainContent;
@@ -1104,17 +1133,17 @@ export default function CreatorRatesTool() {
     );
   }
 
-  if (mode === 'income') {
+  if (mode === 'revenue') {
     mainContent = (
       <div>
-        <h2 style={styles.sectionTitle}>Income streams & licensing</h2>
-        <p style={styles.sectionSubtitle}>The full income picture beyond brand deals: where creators actually earn their money, what they charge for licensing, and how exclusivity affects pricing. Filters apply across this whole tab.</p>
+        <h2 style={styles.sectionTitle}>Annual revenue</h2>
+        <p style={styles.sectionSubtitle}>The full income picture beyond brand deals: where creators actually earn their money across every stream, plus how they set up the business behind it. Filters apply across this whole tab.</p>
 
         <div style={styles.matchBox}>
           <strong>{filteredResponses.length}</strong> {filteredResponses.length === 1 ? 'creator matches' : 'creators match'} your filters
         </div>
 
-        <h3 style={{ ...styles.chartTitle, marginTop: '16px', marginBottom: '20px', fontSize: '20px', color: C.purple }}>Annual revenue by stream</h3>
+        <h3 style={{ ...styles.chartTitle, marginTop: '16px', marginBottom: '20px', fontSize: '20px', color: C.darkGreen }}>Annual revenue by stream</h3>
         {REVENUE_STREAMS.map(s => {
           const values = filteredResponses.map(r => r.revenue[s.key]);
           const dist = getDistribution(values, REVENUE_BRACKETS);
@@ -1131,24 +1160,7 @@ export default function CreatorRatesTool() {
           );
         })}
 
-        <h3 style={{ ...styles.chartTitle, marginTop: '40px', marginBottom: '20px', fontSize: '20px', color: C.purple }}>Licensing & usage rights uplifts</h3>
-        <p style={styles.sectionSubtitle}>What creators charge on top of their base rate for extended usage, exclusivity, and different platform rights.</p>
-        {LICENSING_TYPES.map(l => {
-          const values = filteredResponses.map(r => r.licensing[l.key]);
-          const dist = getDistribution(values, LICENSING_BRACKETS);
-          const validCount = values.filter(v => v && v !== 'N/A').length;
-          return (
-            <div key={l.key} style={styles.chartBlock}>
-              <div style={styles.chartHeader}>
-                <h3 style={styles.chartTitle}>{l.label}</h3>
-                <span style={styles.chartMeta}>{validCount > 0 ? `${validCount} ${validCount === 1 ? 'creator' : 'creators'}` : 'No data'}</span>
-              </div>
-              <DistributionChart distribution={dist} accentColor={C.purple} />
-            </div>
-          );
-        })}
-
-        <h3 style={{ ...styles.chartTitle, marginTop: '40px', marginBottom: '16px', fontSize: '20px', color: C.purple }}>Business setup breakdown</h3>
+        <h3 style={{ ...styles.chartTitle, marginTop: '40px', marginBottom: '16px', fontSize: '20px', color: C.darkGreen }}>Business setup breakdown</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginTop: '16px' }}>
           {[
             { key: 'structure', label: 'Business structure' },
@@ -1177,6 +1189,36 @@ export default function CreatorRatesTool() {
             );
           })}
         </div>
+
+        <RawDataTable responses={filteredResponses} onOpen={setOpenCreator} />
+      </div>
+    );
+  }
+
+  if (mode === 'licensing') {
+    mainContent = (
+      <div>
+        <h2 style={styles.sectionTitle}>Licensing & usage rights</h2>
+        <p style={styles.sectionSubtitle}>What creators charge on top of their base rate for extended usage, exclusivity, and different platform rights. Filters apply across this whole tab.</p>
+
+        <div style={styles.matchBox}>
+          <strong>{filteredResponses.length}</strong> {filteredResponses.length === 1 ? 'creator matches' : 'creators match'} your filters
+        </div>
+
+        {LICENSING_TYPES.map(l => {
+          const values = filteredResponses.map(r => r.licensing[l.key]);
+          const dist = getDistribution(values, LICENSING_BRACKETS);
+          const validCount = values.filter(v => v && v !== 'N/A').length;
+          return (
+            <div key={l.key} style={styles.chartBlock}>
+              <div style={styles.chartHeader}>
+                <h3 style={styles.chartTitle}>{l.label}</h3>
+                <span style={styles.chartMeta}>{validCount > 0 ? `${validCount} ${validCount === 1 ? 'creator' : 'creators'}` : 'No data'}</span>
+              </div>
+              <DistributionChart distribution={dist} accentColor={C.purple} />
+            </div>
+          );
+        })}
 
         <RawDataTable responses={filteredResponses} onOpen={setOpenCreator} />
       </div>
@@ -1254,11 +1296,11 @@ export default function CreatorRatesTool() {
   }
 
   return (
-    <div style={styles.container}>
+    <div style={{ ...styles.container, padding: isMobile ? '16px 14px' : '32px 24px' }}>
       <style>{fontImport}</style>
 
       <header style={styles.header}>
-        <h1 style={styles.title}>Creator Rates Transparency</h1>
+        <h1 style={{ ...styles.title, fontSize: isMobile ? '28px' : '40px' }}>Creative Industry Rates Survey</h1>
         <p style={styles.subtitle}>A free, anonymous, community-built picture of what creators across Aotearoa New Zealand actually charge, across every niche and every kind of creative work, from UGC to photography to podcasting. All rates in NZD. Explore the data, find your benchmark, and add your own.</p>
         <div style={styles.statsBar}>
           <span style={styles.stat}><span style={styles.statNumber}>{RESPONSES.length}</span> responses</span>
@@ -1272,31 +1314,49 @@ export default function CreatorRatesTool() {
       <div style={styles.tabs}>
         <button style={{ ...styles.tab, ...(mode === 'explore' ? styles.tabActive : {}) }} onClick={() => setMode('explore')}><Search size={16} /> Explore by deliverable</button>
         <button style={{ ...styles.tab, ...(mode === 'all' ? styles.tabActive : {}) }} onClick={() => setMode('all')}><SlidersHorizontal size={16} /> All deliverables</button>
-        <button style={{ ...styles.tab, ...(mode === 'income' ? styles.tabActive : {}) }} onClick={() => setMode('income')}><DollarSign size={16} /> Income & licensing</button>
+        <button style={{ ...styles.tab, ...(mode === 'revenue' ? styles.tabActive : {}) }} onClick={() => setMode('revenue')}><DollarSign size={16} /> Annual revenue</button>
+        <button style={{ ...styles.tab, ...(mode === 'licensing' ? styles.tabActive : {}) }} onClick={() => setMode('licensing')}><FileText size={16} /> Licensing</button>
         <button style={{ ...styles.tab, ...(mode === 'question' ? styles.tabActive : {}) }} onClick={() => setMode('question')}><TrendingUp size={16} /> Ask a question</button>
       </div>
 
       {showIntro
         ? <IntroPanel onClose={dismissIntro} />
-        : <button onClick={() => setShowIntro(true)} style={{ background: 'none', border: 'none', color: C.purple, fontSize: '13px', cursor: 'pointer', textDecoration: 'underline', padding: '0 0 16px 0', fontFamily: "'Lato', sans-serif" }}>How to read this data</button>}
+        : <button onClick={() => setShowIntro(true)} style={{ background: 'none', border: 'none', color: C.darkGreen, fontSize: '13px', cursor: 'pointer', textDecoration: 'underline', padding: '0 0 16px 0', fontFamily: "'Lato', sans-serif" }}>How to read this data</button>}
 
-      <div style={styles.layout}>
-        <aside style={styles.sidebar}>
-          <h3 style={styles.sidebarTitle}>Filter the data</h3>
-          <FilterChips label="Creator type" options={CREATOR_TYPES} selected={filters.creatorTypes} onToggle={v => toggleFilter('creatorTypes', v)} icon={<Camera size={12} />} />
-          <FilterChips label="Follower size" options={FOLLOWERS} selected={filters.followers} onToggle={v => toggleFilter('followers', v)} icon={<Users size={12} />} />
-          <FilterChips label="Niche" options={NICHES} selected={filters.niches} onToggle={v => toggleFilter('niches', v)} />
-          <FilterChips label="Creator stage" options={WORK} selected={filters.work} onToggle={v => toggleFilter('work', v)} icon={<Briefcase size={12} />} />
-          <FilterChips label="Years creating" options={YEARS} selected={filters.years} onToggle={v => toggleFilter('years', v)} />
-          {hasFilters && <button style={styles.clearBtn} onClick={clearFilters}>Clear all filters</button>}
-        </aside>
+      {isMobile && (
+        <button onClick={() => setFiltersOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', padding: '12px', marginBottom: '16px', backgroundColor: C.white, border: `1px solid ${C.border}`, borderRadius: '8px', fontSize: '14px', fontWeight: 700, color: C.ink, fontFamily: "'Lato', sans-serif", cursor: 'pointer' }}>
+          <SlidersHorizontal size={16} /> {filtersOpen ? 'Hide filters' : 'Filters'}{activeFilterCount ? ` (${activeFilterCount})` : ''}
+        </button>
+      )}
 
-        <main style={styles.main}>{mainContent}</main>
+      <div style={isMobile ? { display: 'block' } : styles.layout}>
+        {(!isMobile || filtersOpen) && (
+          <aside style={isMobile ? { backgroundColor: C.white, borderRadius: '8px', padding: '20px', border: `1px solid ${C.border}`, marginBottom: '16px' } : styles.sidebar}>
+            <h3 style={styles.sidebarTitle}>Filter the data</h3>
+            <FilterChips label="Creator type" options={CREATOR_TYPES} selected={filters.creatorTypes} onToggle={v => toggleFilter('creatorTypes', v)} icon={<Camera size={12} />} />
+            <FilterChips label="Follower size" options={FOLLOWERS} selected={filters.followers} onToggle={v => toggleFilter('followers', v)} icon={<Users size={12} />} />
+            <FilterChips label="Engagement rate" options={ENGAGEMENT_LEVELS} selected={filters.engagement} onToggle={v => toggleFilter('engagement', v)} />
+            <FilterChips label="Primary niche" options={NICHES} selected={filters.niches} onToggle={v => toggleFilter('niches', v)} />
+            <FilterChips label="Primary platform" options={PLATFORMS} selected={filters.primaryPlatforms} onToggle={v => toggleFilter('primaryPlatforms', v)} />
+            <FilterChips label="Creator stage" options={WORK} selected={filters.work} onToggle={v => toggleFilter('work', v)} icon={<Briefcase size={12} />} />
+            <FilterChips label="Years creating" options={YEARS} selected={filters.years} onToggle={v => toggleFilter('years', v)} />
+            {hasFilters && <button style={styles.clearBtn} onClick={clearFilters}>Clear all filters</button>}
+          </aside>
+        )}
+
+        <main style={{ ...styles.main, padding: isMobile ? '18px' : '32px' }}>
+          <ActiveFilters filters={filters} onRemove={toggleFilter} onClear={clearFilters} />
+          {mainContent}
+        </main>
       </div>
 
       <div style={styles.disclaimer}>
         <div style={styles.disclaimerTitle}>About this data</div>
         This is a community-built benchmark for creators in Aotearoa New Zealand, and it is general information rather than financial advice. Rates are self-reported and reflect what creators have actually been paid, all in New Zealand dollars (NZD). Sample sizes show on every result. Click any creator row in the raw data table to see their full anonymous breakdown. Published under CC BY 4.0, facilitated by Feijoa Social, and independent of our courses and client work.
+      </div>
+
+      <div style={{ marginTop: '16px', textAlign: 'center', fontSize: '13px', color: C.inkSoft, lineHeight: '1.6' }}>
+        Built by <a href="https://www.feijoasocial.com" target="_blank" rel="noopener noreferrer" style={{ color: C.darkGreen, fontWeight: 600 }}>Feijoa Social</a>. Published under a Creative Commons BY 4.0 licence, free to share and build on with credit. Questions or feedback? Email <a href="mailto:abigail@feijoasocial.com" style={{ color: C.darkGreen, fontWeight: 600 }}>abigail@feijoasocial.com</a>.
       </div>
 
       <CreatorModal creator={openCreator} onClose={() => setOpenCreator(null)} />
