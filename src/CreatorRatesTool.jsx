@@ -1193,7 +1193,7 @@ export default function CreatorRatesTool() {
     return true;
   }), [filters, responses]);
 
-  const hasFilters = filters.creatorTypes.length || filters.niches.length || filters.followers.length || filters.work.length || filters.years.length || filters.primaryPlatforms.length || filters.engagement.length || filters.training.length;
+  const hasFilters = Boolean(filters.creatorTypes.length || filters.niches.length || filters.followers.length || filters.work.length || filters.years.length || filters.primaryPlatforms.length || filters.engagement.length || filters.training.length);
   const activeFilterCount = Object.values(filters).reduce((n, arr) => n + arr.length, 0);
 
   const exploreData = useMemo(() => {
