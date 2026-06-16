@@ -260,22 +260,40 @@ const REVENUE_STREAMS = [
   { key: 'ugc', label: 'UGC (brand-owned content)' },
   { key: 'affiliate', label: 'Affiliate income' },
   { key: 'adRevenue', label: 'Platform creator fund / ad revenue' },
-  { key: 'ownProducts', label: 'Own products (courses, ebooks, merch)' },
-  { key: 'services', label: 'Services (coaching, consulting, SMM)' },
+  { key: 'digitalProducts', label: 'Digital products (courses, ebooks, presets)' },
+  { key: 'physicalProducts', label: 'Physical products (merch)' },
+  { key: 'experiences', label: 'Experiences (events, tours, retreats)' },
+  { key: 'agencyServices', label: 'Agency services (consulting, SMM, commercial shoots)' },
   { key: 'speaking', label: 'Speaking & appearances' },
   { key: 'podcast', label: 'Podcast sponsorships' },
   { key: 'memberships', label: 'Substack / Patreon / memberships' },
+  { key: 'other', label: 'Other' },
   { key: 'total', label: 'Total annual income from content' },
 ];
 
-const LICENSING_TYPES = [
-  { key: 'duration6mo', label: '6 month licence uplift' },
-  { key: 'duration12mo', label: '12 month licence uplift' },
-  { key: 'paidSocial', label: 'Paid social / whitelisting uplift' },
-  { key: 'web', label: 'Brand website uplift' },
-  { key: 'ooh', label: 'Out of home (billboards) uplift' },
-  { key: 'exclusivity', label: 'Category exclusivity uplift' },
+const LICENSING_DURATION = [
+  { key: 'dur1mo', label: '1 month' },
+  { key: 'dur3mo', label: '3 months' },
+  { key: 'dur6mo', label: '6 months' },
+  { key: 'dur12mo', label: '12 months' },
+  { key: 'dur3yr', label: '3 years' },
+  { key: 'durPerpetuity', label: 'In perpetuity (forever)' },
 ];
+const LICENSING_USAGE = [
+  { key: 'useOrganicReshare', label: 'Organic reshare on brand socials' },
+  { key: 'usePaidSocial', label: 'Paid social ads' },
+  { key: 'useWebsite', label: 'Brand website' },
+  { key: 'usePrint', label: 'Print (magazines etc)' },
+  { key: 'useOOH', label: 'Out of home (billboards etc)' },
+  { key: 'useTV', label: 'TV / broadcast' },
+];
+const LICENSING_TERRITORY = [
+  { key: 'terrOneCountry', label: 'One country only (e.g. NZ)' },
+  { key: 'terrRegion', label: 'Wider region (Australasia / Europe / North America)' },
+  { key: 'terrGlobal', label: 'Global' },
+];
+const LICENSING_ALL = [...LICENSING_DURATION, ...LICENSING_USAGE, ...LICENSING_TERRITORY, { key: 'exclusivity', label: 'Category exclusivity' }];
+const TOTAL_BRACKETS = ['$0', 'Under $1K', '$1K-$5K', '$5K-$10K', '$10K-$25K', '$25K-$50K', '$50K-$100K', '$100K-$150K', '$150K-$200K', '$200K-$250K', '$250K+'];
 
 const FOLLOWERS = ['1K-5K', '5K-10K', '10K-25K', '25K-50K', '50K-100K', '100K-500K', '500K+'];
 const COUNTRIES = ['New Zealand', 'Australia', 'United Kingdom', 'United States'];
@@ -288,6 +306,7 @@ const CREATOR_TYPES = ['Content creator', 'Influencer', 'Photographer', 'Videogr
 const CURRENCIES = ['NZD', 'AUD', 'USD', 'GBP'];
 const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Podcast', 'Blog', 'Substack', 'LinkedIn'];
 const ENGAGEMENT_LEVELS = ['Under 1%', '1-3%', '3-5%', '5-10%', '10%+'];
+const TRAINING_OPTIONS = ['Self-taught', 'Free resources', 'Paid courses', 'Workshops / webinars', 'Group programmes', '1:1 coaching', 'Formal qualification'];
 
 function enrichResponse(r, i) {
   let creatorType;
@@ -321,7 +340,7 @@ function enrichResponse(r, i) {
   const inboundOutbound = inbound + '% inbound / ' + (100 - inbound) + '% outbound';
 
   const nPool = NICHES.filter(n => n !== r.niche);
-  const secondaryNiche = nPool[i % nPool.length];
+  const secondaryNiches = [nPool[i % nPool.length], nPool[(i + 3) % nPool.length]].filter((v, idx, a) => a.indexOf(v) === idx);
 
   const followersAll = (fIdx >= 0 && fIdx < FOLLOWERS.length - 1 && i % 2 === 0) ? FOLLOWERS[fIdx + 1] : r.followers;
 
@@ -330,7 +349,38 @@ function enrichResponse(r, i) {
 
   const clientLocation = (i % 4 === 0) ? 'USA' : r.country;
 
-  return { creatorType, primaryPlatform, secondaryPlatforms, engagementRate, inboundOutbound, secondaryNiche, followersAll, dealVsRate, clientLocation };
+  let training;
+  if (r.work === 'Hobby with occasional paid opportunities' || (fIdx <= 1 && i % 2 === 0)) training = ['Self-taught'];
+  else {
+    const tp = ['Free resources', 'Paid courses', 'Workshops / webinars', 'Group programmes', '1:1 coaching', 'Formal qualification'];
+    training = [tp[i % tp.length]];
+    if (i % 3 === 0) training.push(tp[(i + 2) % tp.length]);
+    if (fIdx >= 4 && i % 2 === 0) training.push('1:1 coaching');
+    training = Array.from(new Set(training));
+  }
+  const spendOpts = ['$0', 'Under $250', '$250 to $1,000', '$1,000 to $3,000', '$3,000 to $10,000', '$10,000+'];
+  let trainingSpend;
+  if (training.length === 1 && training[0] === 'Self-taught') trainingSpend = (i % 2 === 0) ? '$0' : 'Under $250';
+  else if (fIdx >= 5 || r.work === 'Full-time creator') trainingSpend = spendOpts[3 + (i % 3)];
+  else trainingSpend = spendOpts[1 + (i % 3)];
+
+  const LB = ['0% (included)', '10-25%', '25-50%', '50-100%', '100-200%', '200%+'];
+  const lbase = Math.max(0, Math.min(5, Math.round((fIdx / 6) * 5)));
+  const ljit = (i % 3) - 1;
+  const lic = (offset, naIfSmall) => {
+    if (naIfSmall && fIdx <= 1) return 'N/A';
+    return LB[Math.max(0, Math.min(5, lbase + offset + ljit))];
+  };
+  const licensing = {
+    dur1mo: lic(-2, false), dur3mo: lic(-1, false), dur6mo: lic(0, false), dur12mo: lic(1, false), dur3yr: lic(1, true), durPerpetuity: lic(2, true),
+    useOrganicReshare: lic(-2, false), usePaidSocial: lic(0, false), useWebsite: lic(-1, false), usePrint: lic(0, true), useOOH: lic(1, true), useTV: lic(2, true),
+    terrOneCountry: lic(-1, false), terrRegion: lic(0, false), terrGlobal: lic(1, true),
+    exclusivity: lic(1, false),
+  };
+  const chargesLicensing = (fIdx >= 4) ? 'Always' : (fIdx >= 2 ? 'Sometimes' : (i % 2 === 0 ? 'No, included in base rate' : "I don't know what this is"));
+  const baseRateIncludes = ['Organic post only, no additional usage', 'Organic post plus brand re-share on their socials', 'Organic post plus limited paid usage (e.g. 30 days boosting)', 'Varies deal by deal', "I don't charge for licensing separately"][i % 5];
+
+  return { creatorType, primaryPlatform, secondaryPlatforms, engagementRate, inboundOutbound, secondaryNiches, followersAll, dealVsRate, clientLocation, training, trainingSpend, licensing, chargesLicensing, baseRateIncludes };
 }
 
 const NICHE_MAP = { 'Outdoor': 'Outdoor/Adventure', 'Food': 'Food/Cooking', 'Beauty': 'Beauty/Skincare', 'Fitness': 'Fitness/Wellness', 'Parenting': 'Parenting/Family', 'Business': 'Business/Finance' };
@@ -339,6 +389,12 @@ RESPONSES.forEach((r, i) => {
   r.currency = 'NZD';
   r.niche = NICHE_MAP[r.niche] || r.niche;
   Object.assign(r, enrichResponse(r, i));
+  r.revenue.digitalProducts = r.revenue.ownProducts;
+  r.revenue.physicalProducts = (i % 3 === 0) ? 'Under $1K' : (i % 5 === 0 ? '$1K-$5K' : '$0');
+  r.revenue.experiences = (i % 4 === 0) ? '$1K-$5K' : '$0';
+  r.revenue.agencyServices = r.revenue.services;
+  r.revenue.other = (i % 6 === 0) ? 'Under $1K' : '$0';
+  if (r.revenue.total === '$100K+') { const hi = ['$100K-$150K', '$200K-$250K', '$250K+']; r.revenue.total = hi[i % 3]; }
 });
 
 // === HELPERS ===
@@ -520,7 +576,7 @@ function CreatorModal({ creator, onClose }) {
     ['Years creating', creator.years],
     ['Stage', creator.work],
     ['Niche', creator.niche],
-    ['Secondary niche', creator.secondaryNiche],
+    ['Secondary niches', (creator.secondaryNiches || []).join(', ')],
   ];
 
   return (
@@ -574,7 +630,7 @@ function CreatorModal({ creator, onClose }) {
         <div style={styles.section}>
           <div style={styles.sectionTitle}>Licensing uplifts (on top of base rate)</div>
           <div style={styles.grid}>
-            {LICENSING_TYPES.map(l => (
+            {LICENSING_ALL.map(l => (
               <div key={l.key} style={styles.item}>
                 <div style={styles.itemLabel}>{l.label}</div>
                 <div style={styles.itemValue}>{creator.licensing[l.key]}</div>
@@ -609,6 +665,8 @@ function CreatorModal({ creator, onClose }) {
             <div style={styles.item}><div style={styles.itemLabel}>Agent / management</div><div style={styles.itemValue}>{creator.business.agent}</div></div>
             <div style={styles.item}><div style={styles.itemLabel}>Main client location</div><div style={styles.itemValue}>{creator.clientLocation}</div></div>
             <div style={styles.item}><div style={styles.itemLabel}>Deals vs rate card</div><div style={styles.itemValue}>{creator.dealVsRate}</div></div>
+            <div style={styles.item}><div style={styles.itemLabel}>Training</div><div style={styles.itemValue}>{(creator.training || []).join(', ')}</div></div>
+            <div style={styles.item}><div style={styles.itemLabel}>Invested (last 12mo)</div><div style={styles.itemValue}>{creator.trainingSpend}</div></div>
           </div>
         </div>
       </div>
@@ -977,7 +1035,7 @@ function ActiveFilters({ filters, onRemove, onClear }) {
 // === MAIN COMPONENT ===
 export default function CreatorRatesTool() {
   const [mode, setMode] = useState('explore');
-  const [filters, setFilters] = useState({ creatorTypes: [], niches: [], followers: [], work: [], years: [], primaryPlatforms: [], engagement: [] });
+  const [filters, setFilters] = useState({ creatorTypes: [], niches: [], followers: [], work: [], years: [], primaryPlatforms: [], engagement: [], training: [] });
   const [exploreDeliverable, setExploreDeliverable] = useState('shortform');
   const [question, setQuestion] = useState('');
   const [questionResult, setQuestionResult] = useState(null);
@@ -1007,7 +1065,7 @@ export default function CreatorRatesTool() {
     }));
   };
 
-  const clearFilters = () => setFilters({ creatorTypes: [], niches: [], followers: [], work: [], years: [], primaryPlatforms: [], engagement: [] });
+  const clearFilters = () => setFilters({ creatorTypes: [], niches: [], followers: [], work: [], years: [], primaryPlatforms: [], engagement: [], training: [] });
 
   const filteredResponses = useMemo(() => RESPONSES.filter(r => {
     if (filters.creatorTypes.length && !filters.creatorTypes.includes(r.creatorType)) return false;
@@ -1017,10 +1075,11 @@ export default function CreatorRatesTool() {
     if (filters.years.length && !filters.years.includes(r.years)) return false;
     if (filters.primaryPlatforms.length && !filters.primaryPlatforms.includes(r.primaryPlatform)) return false;
     if (filters.engagement.length && !filters.engagement.includes(r.engagementRate)) return false;
+    if (filters.training.length && !filters.training.some(t => (r.training || []).includes(t))) return false;
     return true;
   }), [filters]);
 
-  const hasFilters = filters.creatorTypes.length || filters.niches.length || filters.followers.length || filters.work.length || filters.years.length || filters.primaryPlatforms.length || filters.engagement.length;
+  const hasFilters = filters.creatorTypes.length || filters.niches.length || filters.followers.length || filters.work.length || filters.years.length || filters.primaryPlatforms.length || filters.engagement.length || filters.training.length;
   const activeFilterCount = Object.values(filters).reduce((n, arr) => n + arr.length, 0);
 
   const exploreData = useMemo(() => {
@@ -1146,7 +1205,7 @@ export default function CreatorRatesTool() {
         <h3 style={{ ...styles.chartTitle, marginTop: '16px', marginBottom: '20px', fontSize: '20px', color: C.darkGreen }}>Annual revenue by stream</h3>
         {REVENUE_STREAMS.map(s => {
           const values = filteredResponses.map(r => r.revenue[s.key]);
-          const dist = getDistribution(values, REVENUE_BRACKETS);
+          const dist = getDistribution(values, s.key === 'total' ? TOTAL_BRACKETS : REVENUE_BRACKETS);
           const validCount = values.filter(v => v && v !== 'N/A').length;
           const isTotal = s.key === 'total';
           return (
@@ -1196,29 +1255,65 @@ export default function CreatorRatesTool() {
   }
 
   if (mode === 'licensing') {
+    const renderLic = (arr) => arr.map(l => {
+      const values = filteredResponses.map(r => (r.licensing || {})[l.key]);
+      const dist = getDistribution(values, LICENSING_BRACKETS);
+      const validCount = values.filter(v => v && v !== 'N/A').length;
+      return (
+        <div key={l.key} style={styles.chartBlock}>
+          <div style={styles.chartHeader}>
+            <h3 style={styles.chartTitle}>{l.label}</h3>
+            <span style={styles.chartMeta}>{validCount > 0 ? `${validCount} ${validCount === 1 ? 'creator' : 'creators'}` : 'No data'}</span>
+          </div>
+          <DistributionChart distribution={dist} accentColor={C.darkGreen} />
+        </div>
+      );
+    });
     mainContent = (
       <div>
         <h2 style={styles.sectionTitle}>Licensing & usage rights</h2>
-        <p style={styles.sectionSubtitle}>What creators charge on top of their base rate for extended usage, exclusivity, and different platform rights. Filters apply across this whole tab.</p>
+        <p style={styles.sectionSubtitle}>Licensing is what creators charge on top of their base rate when a brand uses the content beyond the original organic post. Every figure below is the percentage uplift on the base rate. Filters apply across this whole tab.</p>
 
         <div style={styles.matchBox}>
           <strong>{filteredResponses.length}</strong> {filteredResponses.length === 1 ? 'creator matches' : 'creators match'} your filters
         </div>
 
-        {LICENSING_TYPES.map(l => {
-          const values = filteredResponses.map(r => r.licensing[l.key]);
-          const dist = getDistribution(values, LICENSING_BRACKETS);
-          const validCount = values.filter(v => v && v !== 'N/A').length;
-          return (
-            <div key={l.key} style={styles.chartBlock}>
-              <div style={styles.chartHeader}>
-                <h3 style={styles.chartTitle}>{l.label}</h3>
-                <span style={styles.chartMeta}>{validCount > 0 ? `${validCount} ${validCount === 1 ? 'creator' : 'creators'}` : 'No data'}</span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '8px' }}>
+          {[
+            { key: 'chargesLicensing', label: 'Do creators charge for licensing?' },
+            { key: 'baseRateIncludes', label: 'What the base rate typically includes' },
+          ].map(item => {
+            const counts = {};
+            filteredResponses.forEach(r => { const v = r[item.key]; if (v) counts[v] = (counts[v] || 0) + 1; });
+            const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+            const total = sorted.reduce((sum, [, c]) => sum + c, 0);
+            return (
+              <div key={item.key} style={{ padding: '16px', backgroundColor: C.offWhite, borderRadius: '6px', border: `1px solid ${C.borderSoft}` }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: C.inkSoft, marginBottom: '10px' }}>{item.label}</div>
+                {sorted.length === 0 ? (<div style={{ fontSize: '13px', color: C.inkSoft, fontStyle: 'italic' }}>No data</div>) : (
+                  sorted.map(([v, count]) => (
+                    <div key={v} style={{ fontSize: '13px', color: C.ink, marginBottom: '4px', display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                      <span>{v}</span>
+                      <span style={{ color: C.inkSoft, whiteSpace: 'nowrap' }}>{count} ({Math.round((count / total) * 100)}%)</span>
+                    </div>
+                  ))
+                )}
               </div>
-              <DistributionChart distribution={dist} accentColor={C.purple} />
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+
+        <h3 style={{ ...styles.chartTitle, marginTop: '32px', marginBottom: '16px', fontSize: '20px', color: C.darkGreen }}>Uplift by licence duration</h3>
+        {renderLic(LICENSING_DURATION)}
+
+        <h3 style={{ ...styles.chartTitle, marginTop: '32px', marginBottom: '16px', fontSize: '20px', color: C.darkGreen }}>Uplift by usage type</h3>
+        {renderLic(LICENSING_USAGE)}
+
+        <h3 style={{ ...styles.chartTitle, marginTop: '32px', marginBottom: '16px', fontSize: '20px', color: C.darkGreen }}>Uplift by territory</h3>
+        {renderLic(LICENSING_TERRITORY)}
+
+        <h3 style={{ ...styles.chartTitle, marginTop: '32px', marginBottom: '16px', fontSize: '20px', color: C.darkGreen }}>Category exclusivity</h3>
+        {renderLic([{ key: 'exclusivity', label: 'Category exclusivity uplift' }])}
 
         <RawDataTable responses={filteredResponses} onOpen={setOpenCreator} />
       </div>
@@ -1295,6 +1390,19 @@ export default function CreatorRatesTool() {
     );
   }
 
+  const FILTER_TABS = ['explore', 'all', 'revenue', 'licensing'];
+  if (filteredResponses.length < 5 && FILTER_TABS.includes(mode)) {
+    mainContent = (
+      <div>
+        <div style={{ backgroundColor: `${C.purple}10`, borderLeft: `3px solid ${C.purple}`, padding: '20px 22px', borderRadius: '6px', color: C.ink }}>
+          <div style={{ fontWeight: 700, marginBottom: '6px', fontSize: '15px' }}>Not enough data to show yet</div>
+          <div style={{ fontSize: '14px', lineHeight: '1.55' }}>Fewer than 5 creators match these filters. To protect everyone's anonymity, we only show results when at least 5 creators fit. Try removing a filter or two.</div>
+          {hasFilters && <button onClick={clearFilters} style={{ marginTop: '14px', padding: '10px 18px', backgroundColor: C.darkGreen, color: C.offWhite, border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>Clear all filters</button>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ ...styles.container, padding: isMobile ? '16px 14px' : '32px 24px' }}>
       <style>{fontImport}</style>
@@ -1314,8 +1422,8 @@ export default function CreatorRatesTool() {
       <div style={styles.tabs}>
         <button style={{ ...styles.tab, ...(mode === 'explore' ? styles.tabActive : {}) }} onClick={() => setMode('explore')}><Search size={16} /> Explore by deliverable</button>
         <button style={{ ...styles.tab, ...(mode === 'all' ? styles.tabActive : {}) }} onClick={() => setMode('all')}><SlidersHorizontal size={16} /> All deliverables</button>
-        <button style={{ ...styles.tab, ...(mode === 'revenue' ? styles.tabActive : {}) }} onClick={() => setMode('revenue')}><DollarSign size={16} /> Annual revenue</button>
         <button style={{ ...styles.tab, ...(mode === 'licensing' ? styles.tabActive : {}) }} onClick={() => setMode('licensing')}><FileText size={16} /> Licensing</button>
+        <button style={{ ...styles.tab, ...(mode === 'revenue' ? styles.tabActive : {}) }} onClick={() => setMode('revenue')}><DollarSign size={16} /> Annual revenue</button>
         <button style={{ ...styles.tab, ...(mode === 'question' ? styles.tabActive : {}) }} onClick={() => setMode('question')}><TrendingUp size={16} /> Ask a question</button>
       </div>
 
@@ -1340,6 +1448,7 @@ export default function CreatorRatesTool() {
             <FilterChips label="Primary platform" options={PLATFORMS} selected={filters.primaryPlatforms} onToggle={v => toggleFilter('primaryPlatforms', v)} />
             <FilterChips label="Creator stage" options={WORK} selected={filters.work} onToggle={v => toggleFilter('work', v)} icon={<Briefcase size={12} />} />
             <FilterChips label="Years creating" options={YEARS} selected={filters.years} onToggle={v => toggleFilter('years', v)} />
+            <FilterChips label="Training" options={TRAINING_OPTIONS} selected={filters.training} onToggle={v => toggleFilter('training', v)} />
             {hasFilters && <button style={styles.clearBtn} onClick={clearFilters}>Clear all filters</button>}
           </aside>
         )}
