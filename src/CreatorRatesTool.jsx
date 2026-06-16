@@ -1572,11 +1572,10 @@ export default function CreatorRatesTool() {
             <FilterChips label="Creator type" options={CREATOR_TYPES} selected={filters.creatorTypes} onToggle={v => toggleFilter('creatorTypes', v)} icon={<Camera size={12} />} />
             <FilterChips label="Follower size" options={FOLLOWERS} selected={filters.followers} onToggle={v => toggleFilter('followers', v)} icon={<Users size={12} />} />
             <FilterChips label="Engagement rate" options={ENGAGEMENT_LEVELS} selected={filters.engagement} onToggle={v => toggleFilter('engagement', v)} />
+            <FilterChips label="Years creating" options={YEARS} selected={filters.years} onToggle={v => toggleFilter('years', v)} />
             <FilterChips label="Primary niche" options={NICHES} selected={filters.niches} onToggle={v => toggleFilter('niches', v)} />
             <FilterChips label="Primary platform" options={PLATFORMS} selected={filters.primaryPlatforms} onToggle={v => toggleFilter('primaryPlatforms', v)} />
             <FilterChips label="Creator stage" options={WORK} selected={filters.work} onToggle={v => toggleFilter('work', v)} icon={<Briefcase size={12} />} />
-            <FilterChips label="Years creating" options={YEARS} selected={filters.years} onToggle={v => toggleFilter('years', v)} />
-            <FilterChips label="Training" options={TRAINING_OPTIONS} selected={filters.training} onToggle={v => toggleFilter('training', v)} />
             {hasFilters && <button style={styles.clearBtn} onClick={clearFilters}>Clear all filters</button>}
           </aside>
         )}
