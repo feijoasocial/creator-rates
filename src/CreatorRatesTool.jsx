@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, SlidersHorizontal, TrendingUp, DollarSign, MapPin, Users, Briefcase, X, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { Search, SlidersHorizontal, TrendingUp, DollarSign, MapPin, Users, Briefcase, Camera, X, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 
 // === BRAND COLOURS (Feijoa Social) ===
 const C = {
@@ -13,6 +13,8 @@ const C = {
   borderSoft: '#6e8c4f15',
   white: '#ffffff',
 };
+
+const FORM_URL = 'https://forms.gle/59N1esQac1yyfXQP8';
 
 // === RATE BRACKETS ===
 const RATE_BRACKETS = [
@@ -281,6 +283,61 @@ const NICHES = ['Travel', 'Outdoor', 'Lifestyle', 'Food', 'Fashion', 'Beauty', '
 const WORK = ['Full-time creator', 'Part-time', 'Side hustle', 'Hobby with occasional paid opportunities'];
 const YEARS = ['Under 1', '1-2', '3-5', '6-10', '10+'];
 
+// === EXTRA FIELDS (illustrative sample values until the live feed is wired) ===
+const CREATOR_TYPES = ['Content creator', 'Influencer', 'Photographer', 'Videographer', 'Blogger', 'Podcaster', 'UGC creator'];
+const CURRENCIES = ['NZD', 'AUD', 'USD', 'GBP'];
+const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Podcast', 'Blog', 'Substack', 'LinkedIn'];
+
+function enrichResponse(r, i) {
+  let creatorType;
+  if (r.rates.podcast && r.rates.podcast !== 'N/A' && i % 3 === 0) creatorType = 'Podcaster';
+  else if (r.rates.proVideo && r.rates.proVideo !== 'N/A' && i % 4 === 0) creatorType = 'Videographer';
+  else if (r.rates.proImage && r.rates.proImage !== 'N/A' && i % 4 === 1) creatorType = 'Photographer';
+  else if (r.rates.blog && r.rates.blog !== 'N/A' && i % 5 === 0) creatorType = 'Blogger';
+  else if (r.work === 'Hobby with occasional paid opportunities' || (r.followers === '1K-5K' && i % 2 === 0)) creatorType = 'UGC creator';
+  else creatorType = (i % 2 === 0) ? 'Content creator' : 'Influencer';
+
+  let primaryPlatform;
+  if (creatorType === 'Podcaster') primaryPlatform = 'Podcast';
+  else if (creatorType === 'Blogger') primaryPlatform = 'Blog';
+  else if (r.rates.ytDedicated && r.rates.ytDedicated !== 'N/A' && i % 3 === 0) primaryPlatform = 'YouTube';
+  else primaryPlatform = (i % 4 === 0) ? 'TikTok' : 'Instagram';
+
+  const secPool = PLATFORMS.filter(p => p !== primaryPlatform);
+  const secondaryPlatforms = [secPool[i % secPool.length], secPool[(i + 2) % secPool.length]].filter((v, idx, a) => a.indexOf(v) === idx);
+
+  const fIdx = FOLLOWERS.indexOf(r.followers);
+  let engagementRate;
+  if (fIdx <= 1) engagementRate = (i % 2 === 0) ? '10%+' : '5-10%';
+  else if (fIdx <= 3) engagementRate = (i % 2 === 0) ? '5-10%' : '3-5%';
+  else if (fIdx <= 5) engagementRate = (i % 2 === 0) ? '3-5%' : '1-3%';
+  else engagementRate = (i % 2 === 0) ? '1-3%' : 'Under 1%';
+
+  let inbound;
+  if (fIdx >= 5 || r.work === 'Full-time creator') inbound = (i % 3 === 0) ? 75 : 60;
+  else if (fIdx >= 3) inbound = 50;
+  else inbound = (i % 3 === 0) ? 25 : 40;
+  const inboundOutbound = inbound + '% inbound / ' + (100 - inbound) + '% outbound';
+
+  const nPool = NICHES.filter(n => n !== r.niche);
+  const secondaryNiche = nPool[i % nPool.length];
+
+  const followersAll = (fIdx >= 0 && fIdx < FOLLOWERS.length - 1 && i % 2 === 0) ? FOLLOWERS[fIdx + 1] : r.followers;
+
+  const dealOpts = ['Usually under rate card', 'On par with rate card', 'Often over rate card'];
+  const dealVsRate = dealOpts[i % 3];
+
+  const clientLocation = (i % 4 === 0) ? 'USA' : r.country;
+
+  return { creatorType, primaryPlatform, secondaryPlatforms, engagementRate, inboundOutbound, secondaryNiche, followersAll, dealVsRate, clientLocation };
+}
+
+RESPONSES.forEach((r, i) => {
+  r.country = 'New Zealand';
+  r.currency = 'NZD';
+  Object.assign(r, enrichResponse(r, i));
+});
+
 // === HELPERS ===
 function getDistribution(values, brackets) {
   const dist = {};
@@ -293,6 +350,24 @@ function getDistribution(values, brackets) {
 
 function getValidCount(values) {
   return values.filter(v => v && v !== 'N/A').length;
+}
+
+// Find the median bracket and the middle-50% (p25..p75) range by cumulative count
+function benchmarkOf(distribution) {
+  const total = distribution.reduce((sum, d) => sum + d.count, 0);
+  if (total === 0) return null;
+  let cum = 0, p25 = -1, medianIdx = -1, p75 = -1;
+  distribution.forEach((d, i) => {
+    cum += d.count;
+    if (d.count > 0) {
+      if (p25 === -1 && cum >= total * 0.25) p25 = i;
+      if (medianIdx === -1 && cum >= total * 0.5) medianIdx = i;
+      if (p75 === -1 && cum >= total * 0.75) p75 = i;
+    }
+  });
+  if (p25 === -1) p25 = medianIdx;
+  if (p75 === -1) p75 = medianIdx;
+  return { total, p25, medianIdx, p75 };
 }
 
 // Parse rate or revenue bracket to numeric range for comparison
@@ -323,17 +398,23 @@ function DistributionChart({ distribution, accentColor = C.darkGreen }) {
     return <div style={{ padding: '24px', textAlign: 'center', color: C.inkSoft, fontSize: '14px', fontStyle: 'italic' }}>No data yet for this filter combination</div>;
   }
 
+  const bm = benchmarkOf(distribution);
+  const medianColor = accentColor === C.purple ? C.darkGreen : C.purple;
+
   return (
     <div style={{ marginTop: '8px' }}>
-      {distribution.map(d => {
+      {distribution.map((d, i) => {
         const widthPct = (d.count / maxCount) * 100;
         const sharePct = totalCount > 0 ? Math.round((d.count / totalCount) * 100) : 0;
+        const isMedian = bm && i === bm.medianIdx;
+        const inIqr = bm && i >= bm.p25 && i <= bm.p75;
+        const barColor = isMedian ? medianColor : (inIqr ? accentColor : `${accentColor}55`);
         return (
           <div key={d.bracket} style={{ display: 'grid', gridTemplateColumns: '160px 1fr 80px', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
-            <div style={{ fontSize: '13px', color: C.ink }}>{d.bracket}</div>
+            <div style={{ fontSize: '13px', color: C.ink, display: 'flex', alignItems: 'center', gap: '6px' }}>{d.bracket}{isMedian && <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: medianColor }}>median</span>}</div>
             <div style={{ height: '24px', backgroundColor: C.borderSoft, borderRadius: '3px', overflow: 'hidden', position: 'relative' }}>
               {d.count > 0 && (
-                <div style={{ height: '100%', width: `${widthPct}%`, backgroundColor: accentColor, borderRadius: '3px', transition: 'width 0.3s', display: 'flex', alignItems: 'center', paddingLeft: '8px' }}>
+                <div style={{ height: '100%', width: `${widthPct}%`, backgroundColor: barColor, borderRadius: '3px', transition: 'width 0.3s', display: 'flex', alignItems: 'center', paddingLeft: '8px' }}>
                   {widthPct > 20 && <span style={{ color: C.offWhite, fontSize: '12px', fontWeight: 600 }}>{d.count}</span>}
                 </div>
               )}
@@ -345,6 +426,22 @@ function DistributionChart({ distribution, accentColor = C.darkGreen }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function BenchmarkHeadline({ distribution, noun = 'rate' }) {
+  const bm = benchmarkOf(distribution);
+  if (!bm) return null;
+  const med = distribution[bm.medianIdx] && distribution[bm.medianIdx].bracket;
+  const lo = distribution[bm.p25] && distribution[bm.p25].bracket;
+  const hi = distribution[bm.p75] && distribution[bm.p75].bracket;
+  const rangeText = (lo === hi) ? lo : `${lo} to ${hi}`;
+  return (
+    <div style={{ backgroundColor: `${C.purple}10`, borderLeft: `3px solid ${C.purple}`, padding: '14px 18px', borderRadius: '4px', marginBottom: '20px' }}>
+      <div style={{ fontSize: '14px', color: C.ink }}>
+        Typical {noun}: <strong style={{ color: C.purple }}>{med}</strong>. Middle 50% sit <strong>{rangeText}</strong>.
+      </div>
     </div>
   );
 }
@@ -419,14 +516,13 @@ function CreatorModal({ creator, onClose }) {
   };
 
   const profileItems = [
-    ['Country', creator.country],
+    ['Creator type', creator.creatorType],
     ['Age', creator.age],
     ['Gender', creator.gender],
     ['Years creating', creator.years],
     ['Stage', creator.work],
-    ['Follower size', creator.followers],
     ['Niche', creator.niche],
-    ['Currency', creator.currency],
+    ['Secondary niche', creator.secondaryNiche],
   ];
 
   return (
@@ -448,6 +544,18 @@ function CreatorModal({ creator, onClose }) {
                 <div style={styles.itemValue}>{v}</div>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div style={styles.section}>
+          <div style={styles.sectionTitle}>Platform & audience</div>
+          <div style={styles.grid}>
+            <div style={styles.item}><div style={styles.itemLabel}>Primary platform</div><div style={styles.itemValue}>{creator.primaryPlatform}</div></div>
+            <div style={styles.item}><div style={styles.itemLabel}>Secondary platforms</div><div style={styles.itemValue}>{(creator.secondaryPlatforms || []).join(', ') || '\u2014'}</div></div>
+            <div style={styles.item}><div style={styles.itemLabel}>Follower size (primary)</div><div style={styles.itemValue}>{creator.followers}</div></div>
+            <div style={styles.item}><div style={styles.itemLabel}>Followers (all platforms)</div><div style={styles.itemValue}>{creator.followersAll}</div></div>
+            <div style={styles.item}><div style={styles.itemLabel}>Engagement rate</div><div style={styles.itemValue}>{creator.engagementRate}</div></div>
+            <div style={styles.item}><div style={styles.itemLabel}>Inbound vs outbound</div><div style={styles.itemValue}>{creator.inboundOutbound}</div></div>
           </div>
         </div>
 
@@ -501,6 +609,8 @@ function CreatorModal({ creator, onClose }) {
             <div style={styles.item}><div style={styles.itemLabel}>Rates shown as</div><div style={styles.itemValue}>{creator.business.ratesShown}</div></div>
             <div style={styles.item}><div style={styles.itemLabel}>Uses contracts</div><div style={styles.itemValue}>{creator.business.contracts}</div></div>
             <div style={styles.item}><div style={styles.itemLabel}>Agent / management</div><div style={styles.itemValue}>{creator.business.agent}</div></div>
+            <div style={styles.item}><div style={styles.itemLabel}>Main client location</div><div style={styles.itemValue}>{creator.clientLocation}</div></div>
+            <div style={styles.item}><div style={styles.itemLabel}>Deals vs rate card</div><div style={styles.itemValue}>{creator.dealVsRate}</div></div>
           </div>
         </div>
       </div>
@@ -564,9 +674,10 @@ function RawDataTable({ responses, onOpen }) {
             <thead>
               <tr>
                 <th style={styles.th}>#</th>
-                <th style={styles.th}>Country</th>
+                <th style={styles.th}>Type</th>
                 <th style={styles.th}>Followers</th>
                 <th style={styles.th}>Niche</th>
+                <th style={styles.th}>Platform</th>
                 <th style={styles.th}>Stage</th>
                 <th style={styles.th}>Yrs</th>
                 <th style={{ ...styles.th, backgroundColor: `${C.purple}15`, color: C.purple }}>Total revenue</th>
@@ -578,9 +689,10 @@ function RawDataTable({ responses, onOpen }) {
               {responses.map(c => (
                 <tr key={c.id} style={styles.row} onMouseEnter={e => e.currentTarget.style.backgroundColor = `${C.lightGreen}20`} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                   <td style={styles.td}>#{c.id}</td>
-                  <td style={styles.td}>{c.country}</td>
+                  <td style={styles.td}>{c.creatorType}</td>
                   <td style={styles.td}>{c.followers}</td>
                   <td style={styles.td}>{c.niche}</td>
+                  <td style={styles.td}>{c.primaryPlatform}</td>
                   <td style={styles.td}>{c.work}</td>
                   <td style={styles.td}>{c.years}</td>
                   <td style={{ ...styles.td, ...styles.tdHighlight }}>{c.revenue.total}</td>
@@ -811,14 +923,54 @@ const ASK_ABOUT_LABELS = {
   gst: 'GST status',
 };
 
+// === INTRO / HOW-TO PANEL ===
+function IntroPanel({ onClose }) {
+  const steps = [
+    ['Four ways to explore', 'Use the tabs up top: explore one deliverable, see them all at once, dig into income and licensing, or ask the data a question.'],
+    ['Filter for your context', 'The filters on the left narrow the data by creator type, niche, follower size, stage and years creating.'],
+    ['Find the benchmark', 'On each chart, the purple bar is the median and the green bars are the middle 50%. That is the typical range at a glance.'],
+    ['See the full picture', 'Scroll to "Show raw data" and click any creator to open their complete, anonymous breakdown.'],
+  ];
+  return (
+    <div style={{ backgroundColor: C.white, border: `1px solid ${C.border}`, borderRadius: '8px', padding: '20px 24px', marginBottom: '24px', position: 'relative' }}>
+      <button onClick={onClose} aria-label="Close" style={{ position: 'absolute', top: '14px', right: '14px', background: 'none', border: 'none', cursor: 'pointer', color: C.inkSoft }}><X size={18} /></button>
+      <h3 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '18px', color: C.purple, margin: '0 0 4px 0' }}>New here? How to read the data</h3>
+      <p style={{ fontSize: '13px', color: C.inkSoft, margin: '0 0 16px 0' }}>A 20-second tour so you can find what you need.</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '18px' }}>
+        {steps.map((step, i) => (
+          <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+            <div style={{ flexShrink: 0, width: '22px', height: '22px', borderRadius: '50%', backgroundColor: C.darkGreen, color: C.offWhite, fontSize: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</div>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: C.ink, marginBottom: '2px' }}>{step[0]}</div>
+              <div style={{ fontSize: '12px', color: C.inkSoft, lineHeight: '1.5' }}>{step[1]}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', paddingTop: '16px', borderTop: `1px solid ${C.borderSoft}` }}>
+        <span style={{ fontSize: '13px', color: C.ink }}>Haven't added your rates yet?</span>
+        <a href={FORM_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', backgroundColor: C.darkGreen, color: C.offWhite, borderRadius: '6px', fontSize: '13px', fontWeight: 700, textDecoration: 'none' }}>Complete the survey \u2192</a>
+      </div>
+    </div>
+  );
+}
+
 // === MAIN COMPONENT ===
 export default function CreatorRatesTool() {
   const [mode, setMode] = useState('explore');
-  const [filters, setFilters] = useState({ countries: [], niches: [], followers: [], work: [], years: [] });
+  const [filters, setFilters] = useState({ creatorTypes: [], niches: [], followers: [], work: [], years: [] });
   const [exploreDeliverable, setExploreDeliverable] = useState('shortform');
   const [question, setQuestion] = useState('');
   const [questionResult, setQuestionResult] = useState(null);
   const [openCreator, setOpenCreator] = useState(null);
+  const [showIntro, setShowIntro] = useState(() => {
+    if (typeof window !== 'undefined') return window.localStorage.getItem('crt_intro_dismissed') !== '1';
+    return true;
+  });
+  const dismissIntro = () => {
+    setShowIntro(false);
+    if (typeof window !== 'undefined') window.localStorage.setItem('crt_intro_dismissed', '1');
+  };
 
   const toggleFilter = (category, value) => {
     setFilters(prev => ({
@@ -829,10 +981,10 @@ export default function CreatorRatesTool() {
     }));
   };
 
-  const clearFilters = () => setFilters({ countries: [], niches: [], followers: [], work: [], years: [] });
+  const clearFilters = () => setFilters({ creatorTypes: [], niches: [], followers: [], work: [], years: [] });
 
   const filteredResponses = useMemo(() => RESPONSES.filter(r => {
-    if (filters.countries.length && !filters.countries.includes(r.country)) return false;
+    if (filters.creatorTypes.length && !filters.creatorTypes.includes(r.creatorType)) return false;
     if (filters.niches.length && !filters.niches.includes(r.niche)) return false;
     if (filters.followers.length && !filters.followers.includes(r.followers)) return false;
     if (filters.work.length && !filters.work.includes(r.work)) return false;
@@ -840,7 +992,7 @@ export default function CreatorRatesTool() {
     return true;
   }), [filters]);
 
-  const hasFilters = filters.countries.length || filters.niches.length || filters.followers.length || filters.work.length || filters.years.length;
+  const hasFilters = filters.creatorTypes.length || filters.niches.length || filters.followers.length || filters.work.length || filters.years.length;
 
   const exploreData = useMemo(() => {
     const values = filteredResponses.map(r => r.rates[exploreDeliverable]);
@@ -868,7 +1020,7 @@ export default function CreatorRatesTool() {
     layout: { display: 'grid', gridTemplateColumns: '280px 1fr', gap: '24px' },
     sidebar: { backgroundColor: C.white, borderRadius: '8px', padding: '24px', border: `1px solid ${C.border}`, height: 'fit-content', position: 'sticky', top: '24px' },
     sidebarTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: '18px', margin: '0 0 16px 0', color: C.ink },
-    main: { backgroundColor: C.white, borderRadius: '8px', padding: '32px', border: `1px solid ${C.border}` },
+    main: { backgroundColor: C.white, borderRadius: '8px', padding: '32px', border: `1px solid ${C.border}`, minWidth: 0 },
     sectionTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: '24px', fontWeight: '500', margin: '0 0 8px 0', color: C.ink },
     sectionSubtitle: { fontSize: '14px', color: C.inkSoft, marginBottom: '24px', lineHeight: '1.55' },
     matchBox: { backgroundColor: `${C.lightGreen}40`, borderLeft: `3px solid ${C.darkGreen}`, padding: '14px 18px', borderRadius: '4px', fontSize: '13px', color: C.ink, marginBottom: '24px' },
@@ -896,7 +1048,7 @@ export default function CreatorRatesTool() {
     mainContent = (
       <div>
         <h2 style={styles.sectionTitle}>Explore rate distributions</h2>
-        <p style={styles.sectionSubtitle}>Pick a deliverable to see the full spread of what creators charge. Filters on the left narrow the data by country, audience size, niche, and stage. Every bar shows exactly how many creators sit in that bracket.</p>
+        <p style={styles.sectionSubtitle}>Pick a deliverable to see the full spread of what NZ creators charge. Filters on the left narrow the data by creator type, audience size, niche, and stage. Every bar shows exactly how many creators sit in that bracket.</p>
 
         <div style={{ marginBottom: '24px' }}>
           <label style={styles.label}>Deliverable</label>
@@ -912,6 +1064,8 @@ export default function CreatorRatesTool() {
         {exploreData.validCount > 0 && exploreData.validCount < 5 && (
           <div style={styles.smallSample}>Small sample size ({exploreData.validCount}). These results are indicative only.</div>
         )}
+
+        {exploreData.validCount > 0 && <BenchmarkHeadline distribution={exploreData.distribution} />}
 
         <DistributionChart distribution={exploreData.distribution} accentColor={C.darkGreen} />
 
@@ -1105,13 +1259,14 @@ export default function CreatorRatesTool() {
 
       <header style={styles.header}>
         <h1 style={styles.title}>Creator Rates Transparency</h1>
-        <p style={styles.subtitle}>A live, community-built dataset of what creators actually charge across deliverables, licensing, and revenue streams. Explore the data, find your benchmark, and contribute your own.</p>
+        <p style={styles.subtitle}>A free, anonymous, community-built picture of what creators across Aotearoa New Zealand actually charge, across every niche and every kind of creative work, from UGC to photography to podcasting. All rates in NZD. Explore the data, find your benchmark, and add your own.</p>
         <div style={styles.statsBar}>
           <span style={styles.stat}><span style={styles.statNumber}>{RESPONSES.length}</span> responses</span>
-          <span style={styles.stat}><span style={styles.statNumber}>{COUNTRIES.length}</span> countries</span>
+          <span style={styles.stat}><span style={styles.statNumber}>{NICHES.length}</span> niches</span>
           <span style={styles.stat}><span style={styles.statNumber}>{DELIVERABLES.length}</span> deliverables tracked</span>
           <span style={styles.stat}><span style={styles.statNumber}>{REVENUE_STREAMS.length - 1}</span> revenue streams</span>
         </div>
+        <a href={FORM_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '20px', padding: '12px 22px', backgroundColor: C.darkGreen, color: C.offWhite, borderRadius: '6px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', letterSpacing: '0.3px' }}>+ Add your rates</a>
       </header>
 
       <div style={styles.tabs}>
@@ -1121,10 +1276,14 @@ export default function CreatorRatesTool() {
         <button style={{ ...styles.tab, ...(mode === 'question' ? styles.tabActive : {}) }} onClick={() => setMode('question')}><TrendingUp size={16} /> Ask a question</button>
       </div>
 
+      {showIntro
+        ? <IntroPanel onClose={dismissIntro} />
+        : <button onClick={() => setShowIntro(true)} style={{ background: 'none', border: 'none', color: C.purple, fontSize: '13px', cursor: 'pointer', textDecoration: 'underline', padding: '0 0 16px 0', fontFamily: "'Lato', sans-serif" }}>How to read this data</button>}
+
       <div style={styles.layout}>
         <aside style={styles.sidebar}>
           <h3 style={styles.sidebarTitle}>Filter the data</h3>
-          <FilterChips label="Country" options={COUNTRIES} selected={filters.countries} onToggle={v => toggleFilter('countries', v)} icon={<MapPin size={12} />} />
+          <FilterChips label="Creator type" options={CREATOR_TYPES} selected={filters.creatorTypes} onToggle={v => toggleFilter('creatorTypes', v)} icon={<Camera size={12} />} />
           <FilterChips label="Follower size" options={FOLLOWERS} selected={filters.followers} onToggle={v => toggleFilter('followers', v)} icon={<Users size={12} />} />
           <FilterChips label="Niche" options={NICHES} selected={filters.niches} onToggle={v => toggleFilter('niches', v)} />
           <FilterChips label="Creator stage" options={WORK} selected={filters.work} onToggle={v => toggleFilter('work', v)} icon={<Briefcase size={12} />} />
@@ -1137,7 +1296,7 @@ export default function CreatorRatesTool() {
 
       <div style={styles.disclaimer}>
         <div style={styles.disclaimerTitle}>About this data</div>
-        This is a community-built benchmark, not financial advice. Rates are self-reported by creators and reflect what they've actually been paid. Sample sizes are shown for every result. Currency is shown in the creator's local currency. Click any creator row in the raw data table to see their full anonymous breakdown. This resource is published under CC BY 4.0, facilitated by Feijoa Social, and independent of our courses and client work.
+        This is a community-built benchmark for creators in Aotearoa New Zealand, and it is general information rather than financial advice. Rates are self-reported and reflect what creators have actually been paid, all in New Zealand dollars (NZD). Sample sizes show on every result. Click any creator row in the raw data table to see their full anonymous breakdown. Published under CC BY 4.0, facilitated by Feijoa Social, and independent of our courses and client work.
       </div>
 
       <CreatorModal creator={openCreator} onClose={() => setOpenCreator(null)} />
