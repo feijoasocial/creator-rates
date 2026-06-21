@@ -421,12 +421,20 @@ function getValidCount(values) {
   return values.filter(v => v && v !== 'N/A').length;
 }
 
-// Find the median bracket and the middle-50% (p25..p75) range by cumulative count
+// Brackets excluded from the median / percentile maths (paid work only, $1 upwards).
+// 'Contra' is unique to deliverable rates, so excluding it here never touches revenue or licensing.
+const MEDIAN_EXCLUDE = ['Contra'];
+
+// Find the median bracket and the middle-50% (p25..p75) range by cumulative count.
+// Excluded brackets (e.g. Contra) still display in the chart but are ignored here,
+// so the median is calculated from paid responses ($1+) only.
 function benchmarkOf(distribution) {
-  const total = distribution.reduce((sum, d) => sum + d.count, 0);
+  const isExcluded = (b) => MEDIAN_EXCLUDE.includes(b);
+  const total = distribution.reduce((sum, d) => sum + (isExcluded(d.bracket) ? 0 : d.count), 0);
   if (total === 0) return null;
   let cum = 0, p25 = -1, medianIdx = -1, p75 = -1;
   distribution.forEach((d, i) => {
+    if (isExcluded(d.bracket)) return;
     cum += d.count;
     if (d.count > 0) {
       if (p25 === -1 && cum >= total * 0.25) p25 = i;
@@ -556,14 +564,16 @@ function DistributionChart({ distribution, accentColor = C.darkGreen }) {
         const widthPct = (d.count / maxCount) * 100;
         const sharePct = totalCount > 0 ? Math.round((d.count / totalCount) * 100) : 0;
         const isMedian = bm && i === bm.medianIdx;
-        const barColor = isMedian ? C.purple : C.darkGreen;
+        const inMiddle = bm && !isMedian && i >= bm.p25 && i <= bm.p75;
+        const barColor = isMedian ? C.purple : (inMiddle ? C.lightGreen : C.darkGreen);
+        const inBarText = inMiddle ? C.ink : C.offWhite;
         return (
           <div key={d.bracket} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 48px', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-            <div style={{ fontSize: '13px', color: C.ink, display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>{d.bracket}{isMedian && <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: C.purple }}>median</span>}</div>
+            <div style={{ fontSize: '13px', color: C.ink, display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>{d.bracket}{isMedian && <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: C.purple }}>median</span>}{inMiddle && <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: C.darkGreen }}>typical</span>}</div>
             <div style={{ height: '24px', backgroundColor: C.borderSoft, borderRadius: '3px', overflow: 'hidden', position: 'relative' }}>
               {d.count > 0 && (
                 <div style={{ height: '100%', width: `${widthPct}%`, backgroundColor: barColor, borderRadius: '3px', transition: 'width 0.3s', display: 'flex', alignItems: 'center', paddingLeft: '8px' }}>
-                  {widthPct > 20 && <span style={{ color: C.offWhite, fontSize: '12px', fontWeight: 600 }}>{d.count}</span>}
+                  {widthPct > 20 && <span style={{ color: inBarText, fontSize: '12px', fontWeight: 600 }}>{d.count}</span>}
                 </div>
               )}
               {d.count > 0 && widthPct <= 20 && (
@@ -827,6 +837,7 @@ function RawDataTable({ responses, onOpen }) {
           <table style={styles.table}>
             <thead>
               <tr>
+                <th style={{ ...styles.th, cursor: 'default' }}></th>
                 <th style={styles.th} onClick={() => toggleSort('id')}>#{mark('id')}</th>
                 <th style={styles.th} onClick={() => toggleSort('creatorType')}>Type{mark('creatorType')}</th>
                 <th style={styles.th} onClick={() => toggleSort('followers')}>Followers{mark('followers')}</th>
@@ -836,12 +847,16 @@ function RawDataTable({ responses, onOpen }) {
                 <th style={styles.th} onClick={() => toggleSort('years')}>Yrs{mark('years')}</th>
                 <th style={{ ...styles.th, color: C.darkGreen }} onClick={() => toggleSort('total')}>Total revenue{mark('total')}</th>
                 {DELIVERABLES.map(d => <th key={d.key} style={styles.th} onClick={() => toggleSort('rate:' + d.key)}>{d.short}{mark('rate:' + d.key)}</th>)}
-                <th style={{ ...styles.th, cursor: 'default' }}></th>
               </tr>
             </thead>
             <tbody>
               {sorted.map(c => (
                 <tr key={c.id} style={styles.row} onMouseEnter={e => e.currentTarget.style.backgroundColor = `${C.lightGreen}20`} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                  <td style={styles.td}>
+                    <button style={styles.detailBtn} onClick={() => onOpen(c)}>
+                      <ExternalLink size={11} /> Details
+                    </button>
+                  </td>
                   <td style={styles.td}>#{c.id}</td>
                   <td style={styles.td}>{c.creatorType}</td>
                   <td style={styles.td}>{c.followers}</td>
@@ -853,11 +868,6 @@ function RawDataTable({ responses, onOpen }) {
                   {DELIVERABLES.map(d => (
                     <td key={d.key} style={{ ...styles.td, ...(c.rates[d.key] === 'N/A' ? styles.tdMuted : {}) }}>{c.rates[d.key]}</td>
                   ))}
-                  <td style={styles.td}>
-                    <button style={styles.detailBtn} onClick={() => onOpen(c)}>
-                      <ExternalLink size={11} /> Details
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1080,7 +1090,7 @@ function IntroPanel({ onClose }) {
   const steps = [
     ['Four ways to explore', 'Use the tabs up top: explore one deliverable, see them all at once, dig into income and licensing, or ask the data a question.'],
     ['Filter for your context', 'The filters on the left narrow the data by creator type, niche, follower size, stage and years creating.'],
-    ['Find the benchmark', 'On each chart, the purple bar is the median and the green bars are the middle 50%. That is the typical range at a glance.'],
+    ['Find the benchmark', 'On each chart, the purple bar is the median, the light green bars are the typical middle 50%, and the dark green bars sit above or below that range.'],
     ['See the full picture', 'Scroll to "Show raw data" and click any creator to open their complete, anonymous breakdown.'],
   ];
   return (
@@ -1195,6 +1205,18 @@ export default function CreatorRatesTool() {
 
   const hasFilters = Boolean(filters.creatorTypes.length || filters.niches.length || filters.followers.length || filters.work.length || filters.years.length || filters.primaryPlatforms.length || filters.engagement.length || filters.training.length);
   const activeFilterCount = Object.values(filters).reduce((n, arr) => n + arr.length, 0);
+
+  // Counts that reflect the actual responses, not the static survey option lists.
+  const nicheCount = useMemo(
+    () => new Set(responses.map(r => r.niche).filter(v => v && v !== 'N/A')).size,
+    [responses]
+  );
+  const revenueStreamCount = useMemo(
+    () => REVENUE_STREAMS.filter(s => s.key !== 'total'
+      && responses.some(r => { const v = r.revenue && r.revenue[s.key]; return v && v !== 'N/A' && v !== '$0'; })
+    ).length,
+    [responses]
+  );
 
   const exploreData = useMemo(() => {
     const values = filteredResponses.map(r => r.rates[exploreDeliverable]);
@@ -1539,9 +1561,9 @@ export default function CreatorRatesTool() {
         <p style={styles.subtitle}>A free, anonymous, community-built picture of what creators across Aotearoa New Zealand actually charge, across every niche and every kind of creative work, from UGC to photography to podcasting. All rates in NZD. Explore the data, find your benchmark, and add your own.</p>
         <div style={styles.statsBar}>
           <span style={styles.stat}><span style={styles.statNumber}>{responses.length}</span> responses</span>
-          <span style={styles.stat}><span style={styles.statNumber}>{NICHES.length}</span> niches</span>
+          <span style={styles.stat}><span style={styles.statNumber}>{nicheCount}</span> niches</span>
           <span style={styles.stat}><span style={styles.statNumber}>{DELIVERABLES.length}</span> deliverables tracked</span>
-          <span style={styles.stat}><span style={styles.statNumber}>{REVENUE_STREAMS.length - 1}</span> revenue streams</span>
+          <span style={styles.stat}><span style={styles.statNumber}>{revenueStreamCount}</span> revenue streams</span>
         </div>
         <div style={{ fontSize: '12px', color: C.inkSoft, marginTop: '10px' }}>{dataState === 'loading' ? 'Loading the latest responses\u2026' : dataState === 'error' ? 'Live data unavailable right now.' : `Live data, updated as responses come in${lastUpdated ? ' \u00b7 latest response ' + lastUpdated : ''}.`}</div>
         <a href={FORM_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '16px', padding: '12px 22px', backgroundColor: C.darkGreen, color: C.offWhite, borderRadius: '6px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', letterSpacing: '0.3px' }}>+ Add your rates</a>
@@ -1552,7 +1574,6 @@ export default function CreatorRatesTool() {
         <button style={{ ...styles.tab, ...(mode === 'all' ? styles.tabActive : {}) }} onClick={() => setMode('all')}><SlidersHorizontal size={16} /> All deliverables</button>
         <button style={{ ...styles.tab, ...(mode === 'licensing' ? styles.tabActive : {}) }} onClick={() => setMode('licensing')}><FileText size={16} /> Licensing</button>
         <button style={{ ...styles.tab, ...(mode === 'revenue' ? styles.tabActive : {}) }} onClick={() => setMode('revenue')}><DollarSign size={16} /> Annual revenue</button>
-        <button style={{ ...styles.tab, ...(mode === 'question' ? styles.tabActive : {}) }} onClick={() => setMode('question')}><TrendingUp size={16} /> Ask a question</button>
       </div>
 
       {showIntro
