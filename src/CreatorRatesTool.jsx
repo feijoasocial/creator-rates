@@ -294,7 +294,7 @@ const LICENSING_TERRITORY = [
   { key: 'terrGlobal', label: 'Global' },
 ];
 const LICENSING_ALL = [...LICENSING_DURATION, ...LICENSING_USAGE, ...LICENSING_TERRITORY, { key: 'exclusivity', label: 'Category exclusivity' }];
-const TOTAL_BRACKETS = ['$0', 'Under $1K', '$1K - $5K', '$5K - $10K', '$10K - $25K', '$25K - $50K', '$50K - $100K', '$100K - $150K', '$200K - $250K', '$250K+'];
+const TOTAL_BRACKETS = ['$0', 'Under $1K', '$1K - $5K', '$5K - $10K', '$10K - $25K', '$25K - $50K', '$50K - $100K', '$100K - $150K', '$150K - $250K', '$250K+'];
 
 const FOLLOWERS = ['Under 1K', '1K - 5K', '5K - 10K', '10K - 25K', '25K - 50K', '50K - 100K', '100K - 500K', '500K+'];
 const COUNTRIES = ['New Zealand', 'Australia', 'United Kingdom', 'United States'];
@@ -303,7 +303,7 @@ const WORK = ['Full-time creative', 'Part-time alongside other part-time work', 
 const YEARS = ['Under 1', '1-2', '3-5', '6-10', '10+'];
 
 // === EXTRA FIELDS (illustrative sample values until the live feed is wired) ===
-const CREATOR_TYPES = ['Content Creator', 'Influencer', 'Blogger', 'Podcaster', 'Photographer', 'Videographer', 'Freelancer', 'Business / agency owner', 'YouTuber', 'TikToker', 'Instagrammer', 'Other'];
+const CREATOR_TYPES = ['Content Creator', 'UGC Creator', 'Influencer', 'Photographer', 'Blogger', 'Videographer', 'YouTuber', 'TikToker', 'Instagrammer', 'Podcaster', 'Freelancer', 'Creative Agency', 'Other'];
 const CURRENCIES = ['NZD', 'AUD', 'USD', 'GBP'];
 const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Podcast', 'Blog', 'Substack', 'LinkedIn'];
 const ENGAGEMENT_LEVELS = ['Under 1%', '1% - 3%', '3% - 5%', '5% - 10%', '10%+'];
@@ -389,7 +389,7 @@ const FOLLOWER_MAP = { '1K-5K': '1K - 5K', '5K-10K': '5K - 10K', '10K-25K': '10K
 const WORK_MAP = { 'Full-time creator': 'Full-time creative', 'Part-time': 'Part-time alongside other part-time work', 'Side hustle': 'Side hustle alongside other full-time work', 'Hobby with occasional paid opportunities': 'Hobby with occasional paid opportunities' };
 const RATE_MAP = { 'Free / product only': 'Contra', 'Under $100': '< $100', '$100-$250': '$100 to 250', '$250-$500': '$250 to 500', '$500-$1,000': '$500 to 1k', '$1,000-$2,500': '$1k - 2.5k', '$2,500-$5,000': '$2.5k - 5k', '$5,000-$10,000': '$5k - 10k', '$10,000+': '$10k - 20k', 'N/A': 'N/A' };
 const REVENUE_MAP = { '$0': '$0', 'Under $1K': '< $1K', '$1K-$5K': '$1K - $5K', '$5K-$10K': '$5K - $10K', '$10K-$25K': '$10K - $25K', '$25K-$50K': '$25K - $50K', '$50K-$100K': '$50K - $100K', '$100K+': '$100K+' };
-const TOTAL_MAP = { '$0': '$0', 'Under $1K': 'Under $1K', '$1K-$5K': '$1K - $5K', '$5K-$10K': '$5K - $10K', '$10K-$25K': '$10K - $25K', '$25K-$50K': '$25K - $50K', '$50K-$100K': '$50K - $100K', '$100K-$150K': '$100K - $150K', '$200K-$250K': '$200K - $250K', '$250K+': '$250K+' };
+const TOTAL_MAP = { '$0': '$0', 'Under $1K': 'Under $1K', '$1K-$5K': '$1K - $5K', '$5K-$10K': '$5K - $10K', '$10K-$25K': '$10K - $25K', '$25K-$50K': '$25K - $50K', '$50K-$100K': '$50K - $100K', '$100K-$150K': '$100K - $150K', '$150K-$250K': '$150K - $250K', '$250K+': '$250K+' };
 RESPONSES.forEach((r, i) => {
   r.country = 'New Zealand';
   r.currency = 'NZD';
@@ -403,7 +403,7 @@ RESPONSES.forEach((r, i) => {
   r.revenue.experiences = (i % 4 === 0) ? '$1K-$5K' : '$0';
   r.revenue.agencyServices = r.revenue.services;
   r.revenue.other = (i % 6 === 0) ? 'Under $1K' : '$0';
-  if (r.revenue.total === '$100K+') { const hi = ['$100K-$150K', '$200K-$250K', '$250K+']; r.revenue.total = hi[i % 3]; }
+  if (r.revenue.total === '$100K+') { const hi = ['$100K-$150K', '$150K-$250K', '$250K+']; r.revenue.total = hi[i % 3]; }
   Object.keys(r.revenue).forEach(k => { r.revenue[k] = (k === 'total' ? (TOTAL_MAP[r.revenue[k]] || r.revenue[k]) : (REVENUE_MAP[r.revenue[k]] || r.revenue[k])); });
 });
 
