@@ -564,16 +564,14 @@ function DistributionChart({ distribution, accentColor = C.darkGreen }) {
         const widthPct = (d.count / maxCount) * 100;
         const sharePct = totalCount > 0 ? Math.round((d.count / totalCount) * 100) : 0;
         const isMedian = bm && i === bm.medianIdx;
-        const inMiddle = bm && !isMedian && i >= bm.p25 && i <= bm.p75;
-        const barColor = isMedian ? C.purple : (inMiddle ? C.lightGreen : C.darkGreen);
-        const inBarText = inMiddle ? C.ink : C.offWhite;
+        const barColor = isMedian ? C.purple : C.darkGreen;
         return (
           <div key={d.bracket} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 48px', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-            <div style={{ fontSize: '13px', color: C.ink, display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>{d.bracket}{isMedian && <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: C.purple }}>median</span>}{inMiddle && <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: C.darkGreen }}>typical</span>}</div>
+            <div style={{ fontSize: '13px', color: C.ink, display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>{d.bracket}{isMedian && <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: C.purple }}>median</span>}</div>
             <div style={{ height: '24px', backgroundColor: C.borderSoft, borderRadius: '3px', overflow: 'hidden', position: 'relative' }}>
               {d.count > 0 && (
                 <div style={{ height: '100%', width: `${widthPct}%`, backgroundColor: barColor, borderRadius: '3px', transition: 'width 0.3s', display: 'flex', alignItems: 'center', paddingLeft: '8px' }}>
-                  {widthPct > 20 && <span style={{ color: inBarText, fontSize: '12px', fontWeight: 600 }}>{d.count}</span>}
+                  {widthPct > 20 && <span style={{ color: C.offWhite, fontSize: '12px', fontWeight: 600 }}>{d.count}</span>}
                 </div>
               )}
               {d.count > 0 && widthPct <= 20 && (
@@ -613,9 +611,9 @@ function FilterChips({ label, options, selected, onToggle, icon }) {
           return (
             <button key={opt} onClick={() => onToggle(opt)} style={{
               padding: '6px 14px', fontSize: '13px', fontFamily: "'Lato', sans-serif",
-              backgroundColor: active ? C.darkGreen : 'transparent',
-              border: `1px solid ${active ? C.darkGreen : C.border}`,
-              borderRadius: '20px', color: active ? C.offWhite : C.ink, cursor: 'pointer', transition: 'all 0.15s',
+              backgroundColor: active ? C.lightGreen : 'transparent',
+              border: `1px solid ${active ? C.lightGreen : C.border}`,
+              borderRadius: '20px', color: C.ink, fontWeight: active ? 700 : 400, cursor: 'pointer', transition: 'all 0.15s',
             }}>{opt}</button>
           );
         })}
@@ -1090,7 +1088,7 @@ function IntroPanel({ onClose }) {
   const steps = [
     ['Four ways to explore', 'Use the tabs up top: explore one deliverable, see them all at once, dig into income and licensing, or ask the data a question.'],
     ['Filter for your context', 'The filters on the left narrow the data by creator type, niche, follower size, stage and years creating.'],
-    ['Find the benchmark', 'On each chart, the purple bar is the median, the light green bars are the typical middle 50%, and the dark green bars sit above or below that range.'],
+    ['Find the benchmark', 'On each chart, the purple bar is the median. That is the typical rate at a glance.'],
     ['See the full picture', 'Scroll to "Show raw data" and click any creator to open their complete, anonymous breakdown.'],
   ];
   return (
@@ -1126,7 +1124,7 @@ function ActiveFilters({ filters, onRemove, onClear }) {
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', marginBottom: '20px' }}>
       <span style={{ fontSize: '12px', color: C.inkSoft, marginRight: '2px' }}>Filtering:</span>
       {chips.map(([cat, v]) => (
-        <button key={cat + v} onClick={() => onRemove(cat, v)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', fontSize: '12px', backgroundColor: `${C.darkGreen}12`, border: `1px solid ${C.border}`, borderRadius: '14px', color: C.ink, cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>{v}<X size={11} /></button>
+        <button key={cat + v} onClick={() => onRemove(cat, v)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', fontSize: '12px', backgroundColor: C.lightGreen, border: `1px solid ${C.lightGreen}`, borderRadius: '14px', color: C.ink, cursor: 'pointer', fontFamily: "'Lato', sans-serif" }}>{v}<X size={11} /></button>
       ))}
       <button onClick={onClear} style={{ background: 'none', border: 'none', color: C.darkGreen, fontSize: '12px', cursor: 'pointer', textDecoration: 'underline', fontFamily: "'Lato', sans-serif" }}>Clear all</button>
     </div>
