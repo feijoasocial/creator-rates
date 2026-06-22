@@ -305,7 +305,7 @@ const YEARS = ['Under 1', '1-2', '3-5', '6-10', '10+'];
 // === EXTRA FIELDS (illustrative sample values until the live feed is wired) ===
 const CREATOR_TYPES = ['Content Creator', 'UGC Creator', 'Influencer', 'Photographer', 'Blogger', 'Videographer', 'YouTuber', 'TikToker', 'Instagrammer', 'Podcaster', 'Freelancer', 'Creative Agency', 'Other'];
 const CURRENCIES = ['NZD', 'AUD', 'USD', 'GBP'];
-const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Podcast', 'Blog', 'Substack', 'LinkedIn'];
+const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'Podcast', 'Blog', 'Twitch', 'Substack', 'LinkedIn'];
 const ENGAGEMENT_LEVELS = ['Under 1%', '1% - 3%', '3% - 5%', '5% - 10%', '10%+'];
 const TRAINING_OPTIONS = ["No, I'm fully self-taught", 'Free resources (YouTube, blogs, free webinars)', 'Paid online courses', 'Live workshops or webinars', 'Group programmes, memberships or communities', '1:1 coaching or mentoring', 'Formal qualification (degree, diploma, certificate)'];
 
@@ -482,7 +482,7 @@ function mapRowToResponse(row, idx) {
   const keys = Object.keys(row);
   const val = (key) => (key && row[key] != null ? String(row[key]).trim() : '');
   const get = (sub) => val(keys.find(h => h.includes(sub)));
-  const getMatrix = (qSub, label) => val(keys.find(h => h.includes(qSub) && h.includes('[' + label + ']')));
+  const getMatrix = (qSub, label) => val(keys.find(h => h.includes(qSub) && h.includes('[' + label)));
   const norm = (v, allowed) => (allowed.includes(v) ? v : 'N/A');
   const splitMulti = (v) => (v ? v.split(/,\s*/).map(x => x.trim()).filter(Boolean) : []);
 
@@ -516,15 +516,15 @@ function mapRowToResponse(row, idx) {
     country: get('Country of Residence'),
     age: get('Age Bracket'),
     gender: get('Gender'),
-    years: get('Years Creating'),
+    years: get('Years Creating').replace(/\s*years?$/i, '').trim(),
     work: get('describe your creator work'),
     creatorType: get('describe / introduce yourself'),
     followers: get('Follower Count on your Primary'),
     followersAll: get('Follower Count across all'),
     niche: get('Niche or Content Category (Select the primary'),
     secondaryNiches: splitMulti(get('Secondary niches')),
-    primaryPlatform: get('Primary Platform (where'),
-    secondaryPlatforms: splitMulti(get('Secondary Platforms')),
+    primaryPlatform: get('Primary Platform (where').replace(/\s*\([^)]*\)\s*$/, '').trim(),
+    secondaryPlatforms: splitMulti(get('Secondary Platforms')).map(p => p.replace(/\s*\([^)]*\)\s*$/, '').trim()),
     engagementRate: get('Average Engagement Rate'),
     currency: get('default currency'),
     clientLocation: get('country/region are the majority'),
