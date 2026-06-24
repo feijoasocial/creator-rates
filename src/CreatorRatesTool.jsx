@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, SlidersHorizontal, TrendingUp, DollarSign, FileText, MapPin, Users, Briefcase, Camera, X, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { Search, SlidersHorizontal, TrendingUp, DollarSign, FileText, MapPin, Users, Briefcase, Camera, X, ChevronDown, ChevronUp, ExternalLink, List } from 'lucide-react';
 import Papa from 'papaparse';
 
 // === BRAND COLOURS (Feijoa Social) ===
@@ -16,6 +16,10 @@ const C = {
 };
 
 const FORM_URL = 'https://forms.gle/59N1esQac1yyfXQP8';
+
+// Privacy floor: never display a breakdown, median, or benchmark built on fewer
+// than this many creators. Applies to every individual chart, not just the filter total.
+const MIN_SAMPLE = 5;
 
 // === RATE BRACKETS ===
 const RATE_BRACKETS = [
@@ -552,8 +556,8 @@ function DistributionChart({ distribution, accentColor = C.darkGreen }) {
   const maxCount = Math.max(...distribution.map(d => d.count), 1);
   const totalCount = distribution.reduce((sum, d) => sum + d.count, 0);
 
-  if (totalCount === 0) {
-    return <div style={{ padding: '24px', textAlign: 'center', color: C.inkSoft, fontSize: '14px', fontStyle: 'italic' }}>No data yet for this filter combination</div>;
+  if (totalCount < MIN_SAMPLE) {
+    return <div style={{ padding: '24px', textAlign: 'center', color: C.inkSoft, fontSize: '14px', fontStyle: 'italic' }}>{totalCount === 0 ? 'No data yet for this filter combination' : `Not enough responses to show this yet. We only display a breakdown once at least ${MIN_SAMPLE} creators have answered.`}</div>;
   }
 
   const bm = benchmarkOf(distribution);
@@ -774,8 +778,8 @@ function CreatorModal({ creator, onClose }) {
 }
 
 // === RAW DATA TABLE ===
-function RawDataTable({ responses, onOpen }) {
-  const [expanded, setExpanded] = useState(false);
+function RawDataTable({ responses, onOpen, defaultExpanded = false }) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState('desc');
 
@@ -792,13 +796,24 @@ function RawDataTable({ responses, onOpen }) {
     return '';
   };
 
+  // Randomise the default row order each time the data loads, so no single creator
+  // is consistently shown first. A column sort still overrides this when applied.
+  const shuffled = useMemo(() => {
+    const arr = [...responses];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, [responses]);
+
   const sorted = sortKey
-    ? [...responses].sort((a, b) => {
+    ? [...shuffled].sort((a, b) => {
         const av = accessor(a, sortKey), bv = accessor(b, sortKey);
         const cmp = (typeof av === 'number' && typeof bv === 'number') ? av - bv : String(av).localeCompare(String(bv));
         return sortDir === 'asc' ? cmp : -cmp;
       })
-    : responses;
+    : shuffled;
 
   const toggleSort = (key) => {
     if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
@@ -1089,7 +1104,7 @@ function IntroPanel({ onClose }) {
     ['Four ways to explore', 'Use the tabs up top: explore one deliverable, see them all at once, dig into income and licensing, or ask the data a question.'],
     ['Filter for your context', 'The filters on the left narrow the data by creator type, niche, follower size, stage and years creating.'],
     ['Find the benchmark', 'On each chart, the purple bar is the median. That is the typical rate at a glance.'],
-    ['See the full picture', 'Scroll to "Show raw data" and click any creator to open their complete, anonymous breakdown.'],
+    ['See the full picture', 'Open the Raw data tab for every response in full, then click any creator to see their complete, anonymous breakdown.'],
   ];
   return (
     <div style={{ backgroundColor: C.white, border: `1px solid ${C.border}`, borderRadius: '8px', padding: '20px 24px', marginBottom: '24px', position: 'relative' }}>
@@ -1283,15 +1298,9 @@ export default function CreatorRatesTool() {
           <strong>{filteredResponses.length}</strong> {filteredResponses.length === 1 ? 'creator matches' : 'creators match'} your filters · <strong>{exploreData.validCount}</strong> of them offer this deliverable
         </div>
 
-        {exploreData.validCount > 0 && exploreData.validCount < 5 && (
-          <div style={styles.smallSample}>Small sample size ({exploreData.validCount}). These results are indicative only.</div>
-        )}
-
-        {exploreData.validCount > 0 && <BenchmarkHeadline distribution={exploreData.distribution} />}
+        {exploreData.validCount >= MIN_SAMPLE && <BenchmarkHeadline distribution={exploreData.distribution} />}
 
         <DistributionChart distribution={exploreData.distribution} accentColor={C.darkGreen} />
-
-        <RawDataTable responses={filteredResponses} onOpen={setOpenCreator} />
       </div>
     );
   }
@@ -1314,14 +1323,12 @@ export default function CreatorRatesTool() {
             <div key={d.key} style={styles.chartBlock}>
               <div style={styles.chartHeader}>
                 <h3 style={styles.chartTitle}>{d.label}</h3>
-                <span style={styles.chartMeta}>{validCount > 0 ? `${validCount} ${validCount === 1 ? 'creator' : 'creators'}` : 'No data'}{validCount > 0 && validCount < 5 && ' · small sample'}</span>
+                <span style={styles.chartMeta}>{validCount >= MIN_SAMPLE ? `${validCount} creators` : 'Not enough data'}</span>
               </div>
               <DistributionChart distribution={dist} accentColor={C.darkGreen} />
             </div>
           );
         })}
-
-        <RawDataTable responses={filteredResponses} onOpen={setOpenCreator} />
       </div>
     );
   }
@@ -1346,7 +1353,7 @@ export default function CreatorRatesTool() {
             <div key={s.key} style={{ ...styles.chartBlock, ...(isTotal ? { backgroundColor: `${C.lightGreen}25`, padding: '20px', borderRadius: '6px', borderBottom: 'none', marginTop: '16px' } : {}) }}>
               <div style={styles.chartHeader}>
                 <h3 style={{ ...styles.chartTitle, ...(isTotal ? { color: C.darkGreen } : {}) }}>{isTotal && '★ '}{s.label}</h3>
-                <span style={styles.chartMeta}>{validCount > 0 ? `${validCount} ${validCount === 1 ? 'creator' : 'creators'}` : 'No data'}</span>
+                <span style={styles.chartMeta}>{validCount >= MIN_SAMPLE ? `${validCount} creators` : 'Not enough data'}</span>
               </div>
               <DistributionChart distribution={dist} accentColor={isTotal ? C.darkGreen : C.lightGreen} />
             </div>
@@ -1382,8 +1389,6 @@ export default function CreatorRatesTool() {
             );
           })}
         </div>
-
-        <RawDataTable responses={filteredResponses} onOpen={setOpenCreator} />
       </div>
     );
   }
@@ -1397,7 +1402,7 @@ export default function CreatorRatesTool() {
         <div key={l.key} style={styles.chartBlock}>
           <div style={styles.chartHeader}>
             <h3 style={styles.chartTitle}>{l.label}</h3>
-            <span style={styles.chartMeta}>{validCount > 0 ? `${validCount} ${validCount === 1 ? 'creator' : 'creators'}` : 'No data'}</span>
+            <span style={styles.chartMeta}>{validCount >= MIN_SAMPLE ? `${validCount} creators` : 'Not enough data'}</span>
           </div>
           <DistributionChart distribution={dist} accentColor={C.darkGreen} />
         </div>
@@ -1448,8 +1453,6 @@ export default function CreatorRatesTool() {
 
         <h3 style={{ ...styles.chartTitle, marginTop: '32px', marginBottom: '16px', fontSize: '20px', color: C.darkGreen }}>Category exclusivity</h3>
         {renderLic([{ key: 'exclusivity', label: 'Category exclusivity uplift' }])}
-
-        <RawDataTable responses={filteredResponses} onOpen={setOpenCreator} />
       </div>
     );
   }
@@ -1524,6 +1527,23 @@ export default function CreatorRatesTool() {
     );
   }
 
+  if (mode === 'rawdata') {
+    mainContent = (
+      <div>
+        <h2 style={styles.sectionTitle}>Raw data</h2>
+        <p style={styles.sectionSubtitle}>Every response in the dataset, in full. Sort any column to explore, and click a row for the complete anonymous breakdown. This view always shows all responses and is deliberately not filterable, so individual contributors cannot be singled out.</p>
+        {responses.length < MIN_SAMPLE ? (
+          <div style={{ backgroundColor: `${C.purple}10`, borderLeft: `3px solid ${C.purple}`, padding: '20px 22px', borderRadius: '6px', color: C.ink }}>
+            <div style={{ fontWeight: 700, marginBottom: '6px', fontSize: '15px' }}>Not enough data to show yet</div>
+            <div style={{ fontSize: '14px', lineHeight: '1.55' }}>We only publish the dataset once at least {MIN_SAMPLE} creators have responded.</div>
+          </div>
+        ) : (
+          <RawDataTable responses={responses} onOpen={setOpenCreator} defaultExpanded />
+        )}
+      </div>
+    );
+  }
+
   const FILTER_TABS = ['explore', 'all', 'revenue', 'licensing'];
   if (filteredResponses.length < 5 && FILTER_TABS.includes(mode)) {
     mainContent = (
@@ -1572,20 +1592,21 @@ export default function CreatorRatesTool() {
         <button style={{ ...styles.tab, ...(mode === 'all' ? styles.tabActive : {}) }} onClick={() => setMode('all')}><SlidersHorizontal size={16} /> All deliverables</button>
         <button style={{ ...styles.tab, ...(mode === 'licensing' ? styles.tabActive : {}) }} onClick={() => setMode('licensing')}><FileText size={16} /> Licensing</button>
         <button style={{ ...styles.tab, ...(mode === 'revenue' ? styles.tabActive : {}) }} onClick={() => setMode('revenue')}><DollarSign size={16} /> Annual revenue</button>
+        <button style={{ ...styles.tab, ...(mode === 'rawdata' ? styles.tabActive : {}) }} onClick={() => setMode('rawdata')}><List size={16} /> Raw data</button>
       </div>
 
       {showIntro
         ? <IntroPanel onClose={dismissIntro} />
         : <button onClick={() => setShowIntro(true)} style={{ background: 'none', border: 'none', color: C.darkGreen, fontSize: '13px', cursor: 'pointer', textDecoration: 'underline', padding: '0 0 16px 0', fontFamily: "'Lato', sans-serif" }}>How to read this data</button>}
 
-      {isMobile && (
+      {isMobile && FILTER_TABS.includes(mode) && (
         <button onClick={() => setFiltersOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', padding: '12px', marginBottom: '16px', backgroundColor: C.white, border: `1px solid ${C.border}`, borderRadius: '8px', fontSize: '14px', fontWeight: 700, color: C.ink, fontFamily: "'Lato', sans-serif", cursor: 'pointer' }}>
           <SlidersHorizontal size={16} /> {filtersOpen ? 'Hide filters' : 'Filters'}{activeFilterCount ? ` (${activeFilterCount})` : ''}
         </button>
       )}
 
-      <div style={isMobile ? { display: 'block' } : styles.layout}>
-        {(!isMobile || filtersOpen) && (
+      <div style={isMobile ? { display: 'block' } : (FILTER_TABS.includes(mode) ? styles.layout : { display: 'block' })}>
+        {FILTER_TABS.includes(mode) && (!isMobile || filtersOpen) && (
           <aside style={isMobile ? { backgroundColor: C.white, borderRadius: '8px', padding: '20px', border: `1px solid ${C.border}`, marginBottom: '16px' } : styles.sidebar}>
             <h3 style={styles.sidebarTitle}>Filter the data</h3>
             <FilterChips label="Creator type" options={CREATOR_TYPES} selected={filters.creatorTypes} onToggle={v => toggleFilter('creatorTypes', v)} icon={<Camera size={12} />} />
@@ -1600,7 +1621,7 @@ export default function CreatorRatesTool() {
         )}
 
         <main style={{ ...styles.main, padding: isMobile ? '18px' : '32px' }}>
-          <ActiveFilters filters={filters} onRemove={toggleFilter} onClear={clearFilters} />
+          {FILTER_TABS.includes(mode) && <ActiveFilters filters={filters} onRemove={toggleFilter} onClear={clearFilters} />}
           {mainContent}
         </main>
       </div>
