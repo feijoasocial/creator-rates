@@ -1181,12 +1181,19 @@ export default function CreatorRatesTool() {
         const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
         const rows = (parsed.data || []).filter(row => Object.values(row).some(v => v && String(v).trim()));
         setResponses(rows.map((row, idx) => mapRowToResponse(row, idx)));
-        const last = rows[rows.length - 1];
-        if (last) {
-          const tsKey = Object.keys(last).find(h => h.toLowerCase().includes('timestamp'));
-          const d = tsKey ? new Date(last[tsKey]) : null;
-          setLastUpdated(d && !isNaN(d.getTime()) ? d.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' }) : null);
-        }
+        // Google Forms exports the timestamp in NZ day/month/year order (e.g. "1/07/2026 14:30:25").
+        // new Date() would read that as US month/day and flip 1 July into 7 Jan, so parse it explicitly.
+        const parseFormDate = (s) => {
+          if (!s) return null;
+          const m = String(s).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+          if (m) return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
+          const d = new Date(s);
+          return isNaN(d.getTime()) ? null : d;
+        };
+        const tsKey = Object.keys(rows[0] || {}).find(h => h.toLowerCase().includes('timestamp'));
+        let latest = null;
+        if (tsKey) rows.forEach(row => { const d = parseFormDate(row[tsKey]); if (d && (!latest || d > latest)) latest = d; });
+        setLastUpdated(latest ? latest.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' }) : null);
         setDataState('ready');
       })
       .catch(() => { if (!cancelled) setDataState('error'); });
