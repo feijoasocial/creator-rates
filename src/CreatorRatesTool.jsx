@@ -570,19 +570,18 @@ function DistributionChart({ distribution, accentColor = C.darkGreen }) {
         const isMedian = bm && i === bm.medianIdx;
         const barColor = isMedian ? C.purple : C.darkGreen;
         return (
-          <div key={d.bracket} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 48px', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+          <div key={d.bracket} style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
             <div style={{ fontSize: '13px', color: C.ink, display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>{d.bracket}{isMedian && <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: C.purple }}>median</span>}</div>
             <div style={{ height: '24px', backgroundColor: C.borderSoft, borderRadius: '3px', overflow: 'hidden', position: 'relative' }}>
               {d.count > 0 && (
                 <div style={{ height: '100%', width: `${widthPct}%`, backgroundColor: barColor, borderRadius: '3px', transition: 'width 0.3s', display: 'flex', alignItems: 'center', paddingLeft: '8px' }}>
-                  {widthPct > 20 && <span style={{ color: C.offWhite, fontSize: '12px', fontWeight: 600 }}>{d.count}</span>}
+                  {widthPct > 20 && <span style={{ color: C.offWhite, fontSize: '12px', fontWeight: 600 }}>{sharePct}%</span>}
                 </div>
               )}
               {d.count > 0 && widthPct <= 20 && (
-                <span style={{ position: 'absolute', left: `calc(${widthPct}% + 8px)`, top: '50%', transform: 'translateY(-50%)', color: C.ink, fontSize: '12px', fontWeight: 600 }}>{d.count}</span>
+                <span style={{ position: 'absolute', left: `calc(${widthPct}% + 8px)`, top: '50%', transform: 'translateY(-50%)', color: C.ink, fontSize: '12px', fontWeight: 600 }}>{sharePct}%</span>
               )}
             </div>
-            <div style={{ fontSize: '12px', color: C.inkSoft, textAlign: 'right' }}>{d.count > 0 ? `${sharePct}%` : ''}</div>
           </div>
         );
       })}
