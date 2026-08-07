@@ -1581,7 +1581,7 @@ export default function CreatorRatesTool() {
       <style>{fontImport}</style>
 
       <header style={styles.header}>
-        <h1 style={{ ...styles.title, fontSize: isMobile ? '28px' : '40px' }}>Creative Industry Rates Survey</h1>
+        <h1 style={{ ...styles.title, fontSize: isMobile ? '28px' : '40px' }}>New Zealand Creator Rates Benchmark</h1>
         <p style={styles.subtitle}>A free, anonymous, community-built picture of what creators across Aotearoa New Zealand actually charge, across every niche and every kind of creative work, from UGC to photography to podcasting. All rates in NZD. Explore the data, find your benchmark, and add your own.</p>
         <div style={styles.statsBar}>
           <span style={styles.stat}><span style={styles.statNumber}>{responses.length}</span> responses</span>
